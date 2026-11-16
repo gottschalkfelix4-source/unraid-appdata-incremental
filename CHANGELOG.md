@@ -1,3 +1,9 @@
+###2026.11.16c
+- Status-Seite neu: Kacheln für Zustand, letztes Backup, nächstes Backup und Speicher (belegt im Backup-Speicher, Versionen, freier Platz am Ziel mit Balken)
+- Laufender Vorgang mit „Container x von y“, Gesamtfortschritt, Laufzeit und Abbrechen
+- Liste der letzten Läufe mit Ergebnis, Container-Details und Log je Lauf (optional auch Wiederherstellungen und Wartung)
+- Speicherstatistik wird nach jedem Backup aktualisiert; freier Platz per SFTP „df“ bzw. lokal
+
 ###2026.11.16b
 - Fix: In Unraid kam bei jeder Aktion „Ungültiges CSRF-Token“ (Unraid prüft das Token selbst und entfernt es danach – das Plugin prüft jetzt nur noch, wenn diese Prüfung fehlt)
 - Neu: Einrichtungs-Assistent als erster Tab „Einrichtung“ – Schritt für Schritt: Ziel (Storage Box, SFTP oder Ordner), Anmeldung mit Schlüssel, Backup-Passwort, Verbindung, Container, Zeitplan, Fertig

@@ -126,6 +126,16 @@ waitjob
 ( exec 9>"$T/state/aib.lock"; flock 9; sleep 3 ) & LK=$!; sleep 0.5
 check "Start während laufendem Vorgang abgelehnt (Sperre)" "api run kind=backup containers= | grep -q 'läuft bereits'"
 wait $LK
+ST=$(api state)
+check "Status: Verlauf mit 2 Backup-Läufen" "[ \"\$(echo '$ST' | j data.history | grep -o '\"kind\":\"Backup\"' | wc -l)\" -ge 2 ]"
+check "Status: Lauf enthält Log-Name und neue Daten" "echo '$ST' | j data.history | grep -q '\"log\":\"backup-' && echo '$ST' | j data.history | grep -q '\"data_added\":[1-9]'"
+check "Status: manueller Auslöser vermerkt" "echo '$ST' | j data.history | grep -q '\"trigger\":\"manuell\"'"
+SG=$(api storage)
+check "Speicher: Größe des Backup-Speichers" "echo '$SG' | grep -q '\"stored\":[1-9]' && echo '$SG' | grep -q '\"snapshots\":[1-9]'"
+check "Speicher: freier Platz am lokalen Ziel" "echo '$SG' | grep -q '\"free\":[1-9]' && echo '$SG' | grep -q '\"total\":[1-9]'"
+api save_settings 'settings={"schedule":{"enabled":true,"frequency":"daily","hour":2,"minute":0}}' > /dev/null
+check "Status: nächster Termin berechnet" "api state | j data.next_run | grep -q 'T02:00:00'"
+api save_settings 'settings={"schedule":{"enabled":false}}' > /dev/null
 S=$(api snapshots refresh=1)
 check "Verlauf: 3 Versionen" "[ \"\$(echo '$S' | j data.snapshots | grep -o '\"short_id\"' | wc -l)\" = 3 ]"
 NEW=$(echo "$S" | "$PHP" -r '$d=json_decode(stream_get_contents(STDIN),true); foreach($d["data"]["snapshots"] as $s) if($s["container"]==="gamepanel"){echo $s["id"]; break;}')

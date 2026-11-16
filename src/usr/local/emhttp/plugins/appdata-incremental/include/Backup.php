@@ -10,6 +10,7 @@ final class Backup
 
     /** @var array<string,array> */
     public array $results = [];
+    private int $done = 0;
 
     public function __construct(private Config $cfg, private Restic $restic, private bool $dry = false) {}
 
@@ -179,6 +180,8 @@ final class Backup
                 Fs::human((float)($summary['total_bytes_processed'] ?? 0)), substr((string)($summary['snapshot_id'] ?? '-'), 0, 8)));
         }
         $this->results[$name] = array_merge($this->results[$name] ?? [], $res);
+        $this->done++;
+        State::update(['run_done' => $this->done, 'progress' => null]);
     }
 
     /**
@@ -221,6 +224,8 @@ final class Backup
         if (!$this->dry) Storage::cleanupStale($this->cfg);
         $groups = $this->plan($only);
         Log::info("Plan:\n" . rtrim($this->describePlan($groups)));
+        $this->done = 0;
+        State::update(['run_total' => array_sum(array_map(fn($g) => count($g['members']), $groups)), 'run_done' => 0]);
         $useSnap = $this->cfg->get('snapshot.mode') === 'auto' && !$this->dry;
         $timeout = (int)$this->cfg->get('stop_timeout', 60);
         foreach ($groups as $gname => $g) {

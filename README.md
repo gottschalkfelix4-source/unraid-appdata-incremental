@@ -69,7 +69,7 @@ Vorbereitete Einstellungen, etwa Regeln und Ausschlüsse, lassen sich unter *Zei
 | Tab | Inhalt |
 |---|---|
 | Einrichtung | Assistent für die Ersteinrichtung; danach Übersicht und „erneut durchlaufen“ |
-| Status | Zustand, Fortschritt, „Backup jetzt starten“, Testlauf, Abbrechen, letzter Lauf je Container (neue Daten, Ausfallzeit), Live-Log |
+| Status | Kacheln (Zustand, letztes/nächstes Backup, Speicher belegt/frei), laufender Vorgang mit Fortschritt und Abbrechen, Liste der letzten Läufe mit Details und Log, Live-Log |
 | Container | alle Container mit Icon, Status und Pfaden; sichern, stoppen, Gruppe, Reihenfolge, Ausschlüsse (Ordner-Browser, Vorlagen), Zusatzpfade, „Jetzt sichern“ |
 | Ziel | Backup-Ziel, SSH-Schlüssel, Repository-Passwort, Verbindung testen, Repository initialisieren |
 | Zeitplan & Regeln | Zeitplan, prune und check, Aufbewahrung, Benachrichtigungen, Snapshot-Optionen, globale Ausschlüsse, Regeln für neue Container, Import und Export |

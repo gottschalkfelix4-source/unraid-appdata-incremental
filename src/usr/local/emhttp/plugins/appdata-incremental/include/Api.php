@@ -51,7 +51,23 @@ final class Api
         $s['configured'] = !$this->restic()->checkReady();
         $s['schedule_active'] = is_file(Schedule::cronFile());
         $s['schedule'] = (string)$this->cfg->get('schedule.backup');
+        $next = $s['schedule_active'] ? Schedule::nextRun($s['schedule']) : null;
+        $s['next_run'] = $next ? date('c', $next) : null;
+        $s['now'] = date('c');
+        if (!$run) unset($s['run_total'], $s['run_done']);
+        $hist = (array)($s['history'] ?? []);
+        if (!$hist && !empty($s['last'])) { $l = $s['last']; $l['log'] = !empty($l['log']) ? basename((string)$l['log']) : null; $hist = [$l]; }
+        $s['history'] = array_slice($hist, 0, max(1, min(100, (int)($p['limit'] ?? 30))));
         return $s;
+    }
+
+    /** Repository size and free space at the target (cached; refresh=1 re-reads). */
+    private function a_storage(array $p): array
+    {
+        $refresh = self::bool($p['refresh'] ?? false);
+        $stats = State::read()['repo_stats'] ?? null;
+        if (($refresh || !$stats) && !Jobs::running() && !$this->restic()->checkReady()) $stats = RepoStats::refresh($this->cfg) ?? $stats;
+        return ['repo' => $stats, 'target' => $this->restic()->checkReady() ? null : RepoStats::targetSpace($this->cfg, $refresh)];
     }
 
     private function a_log_tail(array $p): array

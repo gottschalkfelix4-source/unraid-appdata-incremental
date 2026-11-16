@@ -82,7 +82,7 @@ function persistLog(Config $cfg): void
     foreach (array_slice($logs, 0, max(0, count($logs) - $keep)) as $old) @unlink($old);
 }
 
-function finishRun(Config $cfg, string $kind, bool $ok, array $results, float $t0, bool $notifySuccess = false): void
+function finishRun(Config $cfg, string $kind, bool $ok, array $results, float $t0, bool $notifySuccess = false, string $trigger = 'manuell'): void
 {
     $level = !$ok || Log::$errors ? 'error' : (Log::$warnings ? 'warning' : 'ok');
     foreach ($results as &$r) if (($r['status'] ?? '') === 'pending') $r['status'] = 'cancelled';
@@ -90,10 +90,18 @@ function finishRun(Config $cfg, string $kind, bool $ok, array $results, float $t
     $dur = (int)round(microtime(true) - $t0);
     $summary = sprintf('%s %s nach %s (%d Fehler, %d Warnungen)', $kind, $level === 'ok' ? 'erfolgreich' : ($level === 'warning' ? 'mit Warnungen' : 'FEHLGESCHLAGEN'), gmdate('H:i:s', $dur), Log::$errors, Log::$warnings);
     Log::info($summary);
-    State::update(['running' => false, 'phase' => 'idle', 'current' => null, 'last' => [
-        'kind' => $kind, 'finished' => date('c'), 'result' => $level, 'duration' => $dur,
+    $last = [
+        'kind' => $kind, 'trigger' => $trigger, 'started' => State::read()['started'] ?? null, 'finished' => date('c'), 'result' => $level, 'duration' => $dur,
         'errors' => Log::$errors, 'warnings' => Log::$warnings, 'log' => Log::file(), 'containers' => $results,
-    ]]);
+        'data_added' => array_sum(array_map(fn($r) => (int)($r['data_added'] ?? 0), $results)),
+    ];
+    $hist = (array)(State::read()['history'] ?? []);
+    array_unshift($hist, array_merge($last, ['log' => Log::file() ? basename(Log::file()) : null]));
+    State::update(['running' => false, 'phase' => 'idle', 'current' => null, 'progress' => null, 'last' => $last,
+                   'history' => array_slice($hist, 0, 100)]);
+    if ($level !== 'error' && in_array($kind, ['Backup', 'Aufbewahrung', 'Aufräumen (prune)'], true)) {
+        try { RepoStats::refresh($cfg); } catch (\Throwable $e) { Log::debug('stats: ' . $e->getMessage()); }
+    }
     $n = $cfg->get('notify');
     $detail = implode('; ', array_slice(Log::$problems, 0, 5));
     if ($level === 'error' && $n['on_error']) Notify::send('error', "Appdata Incremental: $kind fehlgeschlagen", $detail ?: $summary);
@@ -297,7 +305,7 @@ function main(array $argv): int
                 Log::error($e->getMessage());
                 $ok = false;
             } finally {
-                finishRun($cfg, $dry ? 'Testlauf' : 'Backup', $ok, $b->results, $t0);
+                finishRun($cfg, $dry ? 'Testlauf' : 'Backup', $ok, $b->results, $t0, false, $cmd === 'cron' ? 'geplant' : 'manuell');
                 Log::close();
             }
             return $ok ? 0 : 1;

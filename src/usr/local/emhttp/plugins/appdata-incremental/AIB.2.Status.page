@@ -6,27 +6,45 @@ Markdown="false"
 <?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
 <div id="aib-status" class="aib-wrap">
   <div id="aib-setup-hint" class="aib-msg info" style="display:none">Die Einrichtung ist noch nicht fertig. <a href="#" onclick="AIB.gotoTab('Einrichtung');return false">Zum Einrichtungs-Assistenten</a></div>
-  <div class="title"><span class="left"><i class="fa fa-tachometer title"></i>Aktueller Stand</span></div>
-  <dl><dt>Status:</dt><dd id="aib-state">…</dd></dl>
-  <div id="aib-progress" class="aib-progress" style="display:none"><div></div></div>
-  <div id="aib-progress-text" class="aib-muted"></div>
+
+  <div class="aib-tiles">
+    <div class="aib-tile" id="aib-t-state"><div class="aib-tile-h"><i class="fa fa-heartbeat"></i> Zustand</div><div class="aib-tile-v">…</div><div class="aib-tile-s"></div></div>
+    <div class="aib-tile" id="aib-t-last"><div class="aib-tile-h"><i class="fa fa-history"></i> Letztes Backup</div><div class="aib-tile-v">…</div><div class="aib-tile-s"></div></div>
+    <div class="aib-tile" id="aib-t-next"><div class="aib-tile-h"><i class="fa fa-clock-o"></i> Nächstes Backup</div><div class="aib-tile-v">…</div><div class="aib-tile-s"></div></div>
+    <div class="aib-tile" id="aib-t-store"><div class="aib-tile-h"><i class="fa fa-database"></i> Speicher <a href="#" id="aib-store-refresh" title="neu berechnen"><i class="fa fa-refresh"></i></a></div>
+      <div class="aib-tile-v">…</div><div class="aib-tile-s"></div><div class="aib-bar" style="display:none"><div></div></div><div class="aib-tile-s aib-tile-s2"></div></div>
+  </div>
+
+  <div id="aib-job" class="aib-job" style="display:none">
+    <div class="aib-job-h"><span class="aib-badge orange">LÄUFT</span> <b id="aib-job-title"></b> <span id="aib-job-time" class="aib-muted"></span>
+      <input type="button" id="aib-cancel" value="Abbrechen" style="float:right"></div>
+    <div id="aib-job-phase"></div>
+    <div class="aib-progress"><div id="aib-job-bar"></div></div>
+    <div id="aib-job-detail" class="aib-muted"></div>
+  </div>
+
   <div class="aib-row">
     <input type="button" id="aib-run-all" value="Backup jetzt starten" disabled>
     <input type="button" id="aib-run-dry" value="Testlauf (nichts sichern)" disabled>
-    <input type="button" id="aib-cancel" value="Abbrechen" style="display:none">
   </div>
   <blockquote class="inline_help">
     <p><b>Backup jetzt starten</b> sichert alle im Tab „Container“ ausgewählten Container – so wie der geplante Lauf.
-    Einzelne Container lassen sich im Tab „Container“ mit „Jetzt sichern“ starten.</p>
-    <p><b>Testlauf</b> zeigt im Log, was gesichert würde. Es wird nichts hochgeladen und kein Container gestoppt.</p>
+    <b>Testlauf</b> zeigt im Log, was gesichert würde, ohne etwas hochzuladen oder Container zu stoppen.</p>
+    <p><b>Speicher</b>: „Belegt“ ist die tatsächliche Größe aller Versionen im Backup-Speicher (komprimiert und dedupliziert).
+    „Frei am Ziel“ ist der freie Platz auf der Storage Box bzw. Disk. Die Werte werden nach jedem Backup aktualisiert.</p>
     <p><b>Abbrechen</b> beendet den laufenden Vorgang. Vom Plugin gestoppte Container werden sofort wieder gestartet und Snapshots gelöscht.</p>
   </blockquote>
   <div id="aib-status-msg" class="aib-msg"></div>
 
-  <div class="title"><span class="left"><i class="fa fa-list title"></i>Letzter Lauf</span></div>
-  <div id="aib-last"><p class="aib-muted">…</p></div>
+  <div class="title"><span class="left"><i class="fa fa-list title"></i>Letzte Läufe</span>
+    <span class="right"><label class="aib-muted"><input type="checkbox" id="aib-hist-all"> auch Wiederherstellungen und Wartung</label></span></div>
+  <table class="tablesorter shift aib-table aib-runs">
+    <thead><tr><th>Zeitpunkt</th><th>Art</th><th>Ergebnis</th><th>Container</th><th>Neu hochgeladen</th><th>Dauer</th><th></th></tr></thead>
+    <tbody id="aib-runs"></tbody>
+  </table>
 
-  <div class="title"><span class="left"><i class="fa fa-terminal title"></i>Live-Log</span><span class="right aib-muted aib-mono" id="aib-logname"></span></div>
-  <div id="aib-livelog" class="aib-log"></div>
-  <div class="aib-row"><input type="button" id="aib-log-clear" value="Anzeige leeren"><span class="aib-muted">Ältere Logs: Tab „Logs &amp; Werkzeuge“</span></div>
+  <details class="aib-live" id="aib-live">
+    <summary><i class="fa fa-terminal"></i> Live-Log <span class="aib-muted aib-mono" id="aib-logname"></span></summary>
+    <div id="aib-livelog" class="aib-log"></div>
+  </details>
 </div>

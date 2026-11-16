@@ -226,6 +226,37 @@ final class Schedule
         throw new \InvalidArgumentException('Unbekannte Häufigkeit');
     }
 
+    /** Next start time for a 5-field cron expression (numbers, *, lists, ranges, steps). */
+    public static function nextRun(string $expr, ?int $from = null): ?int
+    {
+        $f = preg_split('/\s+/', trim($expr));
+        if (count($f) !== 5) return null;
+        $ranges = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]];
+        $sets = [];
+        foreach ($f as $i => $field) {
+            $set = [];
+            foreach (explode(',', $field) as $part) {
+                if (!preg_match('#^(\*|\d+(?:-\d+)?)(?:/(\d+))?$#', $part, $m)) return null;
+                [$lo, $hi] = $m[1] === '*' ? $ranges[$i] : (str_contains($m[1], '-') ? array_map('intval', explode('-', $m[1])) : [(int)$m[1], (int)$m[1]]);
+                $step = isset($m[2]) ? max(1, (int)$m[2]) : 1;
+                if ($m[1] !== '*' && !str_contains($m[1], '-') && isset($m[2])) $hi = $ranges[$i][1];
+                for ($v = $lo; $v <= $hi; $v += $step) $set[$v] = true;
+            }
+            $sets[] = $set;
+        }
+        if (isset($sets[4][7])) $sets[4][0] = true;
+        $domAny = $f[2] === '*'; $dowAny = $f[4] === '*';
+        $t = (int)(floor(($from ?? time()) / 60) * 60) + 60;
+        for ($i = 0; $i < 527040; $i++, $t += 60) { // one year of minutes
+            if (!isset($sets[1][(int)date('G', $t)])) { $t += (59 - (int)date('i', $t)) * 60; continue; }
+            if (!isset($sets[0][(int)date('i', $t)]) || !isset($sets[3][(int)date('n', $t)])) continue;
+            $dom = isset($sets[2][(int)date('j', $t)]); $dow = isset($sets[4][(int)date('w', $t)]);
+            $dayOk = $domAny && $dowAny ? true : ($domAny ? $dow : ($dowAny ? $dom : ($dom || $dow)));
+            if ($dayOk) return $t;
+        }
+        return null;
+    }
+
     public static function apply(Config $cfg): string
     {
         $expr = trim((string)$cfg->get('schedule.backup', ''));
@@ -390,5 +421,75 @@ final class Doctor
             Lock::release();
         }
         return ['ok' => $ok, 'log' => $log];
+    }
+}
+
+/** Repository size (restic stats) and free space at the target. */
+final class RepoStats
+{
+    public static function refresh(Config $cfg): ?array
+    {
+        $r = new Restic($cfg);
+        if ($r->checkReady()) return null;
+        [$c, $o] = $r->run(['stats', '--mode', 'raw-data', '--json', '--no-lock'], null, false);
+        if ($c !== 0) return null;
+        $lines = array_values(array_filter(explode("\n", trim($o))));
+        $j = json_decode((string)end($lines), true);
+        if (!is_array($j)) return null;
+        $st = ['stored' => $j['total_size'] ?? null, 'uncompressed' => $j['total_uncompressed_size'] ?? null,
+               'snapshots' => $j['snapshots_count'] ?? null, 'updated' => date('c')];
+        State::update(['repo_stats' => $st]);
+        return $st;
+    }
+
+    /** @return array{free:?int,total:?int,used:?int,source:string,error:?string} */
+    public static function targetSpace(Config $cfg, bool $refresh = false): array
+    {
+        $cache = Env::tmpDir() . '/target-space.json';
+        $key = md5(Target::repository($cfg));
+        if (!$refresh && is_file($cache) && time() - filemtime($cache) < 600) {
+            $d = json_decode((string)file_get_contents($cache), true);
+            if (is_array($d) && ($d['key'] ?? '') === $key) return $d['space'];
+        }
+        $space = ['free' => null, 'total' => null, 'used' => null, 'source' => '', 'error' => null];
+        $type = (string)($cfg->get('target.type') ?? '');
+        $repo = Target::repository($cfg);
+        if ($type === 'local' || ($type === '' && str_starts_with($repo, '/'))) {
+            $p = $repo;
+            while ($p !== '/' && !is_dir($p)) $p = dirname($p);
+            $free = @disk_free_space($p); $total = @disk_total_space($p);
+            if ($free !== false && $total !== false) $space = ['free' => (int)$free, 'total' => (int)$total, 'used' => (int)($total - $free), 'source' => $p, 'error' => null];
+            else $space['error'] = 'nicht lesbar';
+        } elseif ($type === 'sftp') {
+            $space = self::sftpSpace($cfg);
+        } else {
+            $space['error'] = 'für dieses Ziel nicht verfügbar';
+        }
+        if (!is_dir(Env::tmpDir())) @mkdir(Env::tmpDir(), 0700, true);
+        @file_put_contents($cache, json_encode(['key' => $key, 'space' => $space]));
+        return $space;
+    }
+
+    private static function sftpSpace(Config $cfg): array
+    {
+        $space = ['free' => null, 'total' => null, 'used' => null, 'source' => 'sftp', 'error' => null];
+        $key = (string)$cfg->get('ssh.key_file');
+        if (!is_file($key)) { $space['error'] = 'kein Schlüssel'; return $space; }
+        $batch = Env::tmpDir() . '/sftp-df.batch';
+        if (!is_dir(Env::tmpDir())) @mkdir(Env::tmpDir(), 0700, true);
+        file_put_contents($batch, "df\n");
+        [$c, $o, $e] = Cmd::run([Env::bin('sftp'), '-b', $batch, '-P', (string)(int)$cfg->get('target.port'), '-i', (new Restic($cfg))->privateKeyCopy($key),
+            '-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes', '-o', 'StrictHostKeyChecking=accept-new',
+            '-o', 'UserKnownHostsFile=' . $cfg->get('ssh.known_hosts'), '-o', 'ConnectTimeout=20',
+            V::user((string)$cfg->get('target.user')) . '@' . V::host((string)$cfg->get('target.host'))]);
+        if ($c !== 0) { $space['error'] = stripos($e, 'not supported') !== false ? 'vom Server nicht unterstützt' : 'nicht abrufbar'; return $space; }
+        // sftp "df": header "Size Used Avail (root) %Capacity", values in KiB
+        foreach (array_reverse(explode("\n", trim($o))) as $l) {
+            if (preg_match('/^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+\d+%/', $l, $m)) {
+                return ['total' => (int)$m[1] * 1024, 'used' => (int)$m[2] * 1024, 'free' => (int)$m[3] * 1024, 'source' => 'sftp', 'error' => null];
+            }
+        }
+        $space['error'] = 'Antwort nicht lesbar';
+        return $space;
     }
 }

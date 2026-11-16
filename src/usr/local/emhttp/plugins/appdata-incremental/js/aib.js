@@ -73,8 +73,26 @@
   };
 
   // ------------------------------------------------------------------ status
+  A.ago = function (iso, now) {
+    if (!iso) return '';
+    var s = Math.round(((now ? new Date(now) : new Date()) - new Date(iso)) / 1000);
+    if (s < 60) return 'gerade eben';
+    if (s < 3600) return 'vor ' + Math.round(s / 60) + ' min';
+    if (s < 86400) return 'vor ' + Math.round(s / 3600) + ' Std.';
+    return 'vor ' + Math.round(s / 86400) + ' Tagen';
+  };
+  A.until = function (iso, now) {
+    if (!iso) return '';
+    var s = Math.round((new Date(iso) - (now ? new Date(now) : new Date())) / 1000);
+    if (s < 3600) return 'in ' + Math.max(1, Math.round(s / 60)) + ' min';
+    if (s < 86400) return 'in ' + Math.round(s / 3600) + ' Std.';
+    return 'in ' + Math.round(s / 86400) + ' Tagen';
+  };
+  var RES = { ok: ['green', 'erfolgreich'], warning: ['orange', 'mit Warnungen'], error: ['red', 'fehlgeschlagen'] };
+  var CRES = { ok: ['green', 'OK'], warning: ['orange', 'Warnung'], error: ['red', 'Fehler'], cancelled: ['red', 'abgebrochen'], pending: ['red', 'abgebrochen'] };
+
   var Status = {
-    file: '', offset: 0, timer: null, wasRunning: false,
+    file: '', offset: 0, timer: null, wasRunning: false, s: null, open: {},
     init: function () {
       var $s = $('#aib-status'); if (!$s.length) return;
       $('#aib-run-all').on('click', function () {
@@ -86,22 +104,30 @@
           A.api('cancel').then(function (d) { A.msg('#aib-status-msg', d.message, 'info'); Status.poll(); }, function (e) { A.msg('#aib-status-msg', e, 'err'); });
         }, true);
       });
-      $('#aib-log-clear').on('click', function () { $('#aib-livelog').text(''); });
+      $('#aib-store-refresh').on('click', function (e) { e.preventDefault(); Status.storage(true); });
+      $('#aib-hist-all').on('change', function () { if (Status.s) Status.runs(Status.s); });
+      $('#aib-runs').on('click', '.aib-rundet', function () {
+        var k = String($(this).data('k')); Status.open[k] = !Status.open[k]; Status.runs(Status.s);
+      }).on('click', '.aib-runlog', function () {
+        var n = $(this).data('log'), $box = $(this).closest('td').find('.aib-runlogbox');
+        A.api('log', { name: n }).then(function (r) { $box.text(r.data).show(); }, function (e) { $box.text(e).show(); });
+      });
       Status.poll();
+      Status.storage(false);
     },
     start: function (kind, cts) {
       A.msg('#aib-status-msg', '');
       return A.api('run', { kind: kind, containers: cts }).then(function () {
-        A.msg('#aib-status-msg', kind === 'dryrun' ? 'Testlauf gestartet – es wird nichts gesichert und kein Container gestoppt.' : 'Gestartet.', 'ok');
-        Status.file = ''; Status.offset = 0; $('#aib-livelog').text(''); Status.poll();
+        A.msg('#aib-status-msg', kind === 'dryrun' ? 'Testlauf gestartet – es wird nichts gesichert und kein Container gestoppt.' : 'Backup gestartet.', 'ok');
+        Status.file = ''; Status.offset = 0; $('#aib-livelog').text(''); $('#aib-live').prop('open', true); Status.poll();
       }, function (e) { A.msg('#aib-status-msg', e, 'err'); });
     },
     poll: function () {
       clearTimeout(Status.timer);
       A.api('state').then(function (s) {
-        Status.render(s);
+        Status.s = s; Status.render(s);
         if (s.running || Status.wasRunning || !Status.file) Status.tail();
-        if (Status.wasRunning && !s.running) { if (A.History) A.History.load(false); if (A.Tools) A.Tools.logs(); }
+        if (Status.wasRunning && !s.running) { if (A.History) A.History.load(false); if (A.Tools) A.Tools.logs(); Status.storage(false); }
         Status.wasRunning = s.running;
         Status.timer = setTimeout(Status.poll, s.running ? 2000 : 15000);
       }, function () { Status.timer = setTimeout(Status.poll, 15000); });
@@ -119,40 +145,93 @@
         $('#aib-logname').text(d.file || '');
       });
     },
+    tile: function (id, val, sub, cls) {
+      var $t = $('#' + id);
+      $t.removeClass('green orange red').addClass(cls || '');
+      $t.find('.aib-tile-v').html(val); $t.find('.aib-tile-s').first().html(sub || '');
+    },
+    storage: function (refresh) {
+      var $t = $('#aib-t-store');
+      if (refresh) $t.find('.aib-tile-v').html('<i class="fa fa-spinner fa-spin"></i>');
+      A.api('storage', { refresh: refresh ? 1 : 0 }).then(function (d) {
+        var r = d.repo, t = d.target;
+        $t.find('.aib-tile-v').html(r && r.stored !== null ? A.human(r.stored) + ' <span class="aib-tile-unit">belegt</span>' : '–');
+        $t.find('.aib-tile-s').first().html(r ? (r.snapshots !== null ? r.snapshots + ' Versionen' : '') +
+          (r.uncompressed ? ' · unkomprimiert ' + A.human(r.uncompressed) : '') : 'noch keine Daten');
+        if (t && t.free !== null && t.total) {
+          var pct = Math.round(100 * (t.total - t.free) / t.total);
+          $t.find('.aib-bar').show().children().css('width', pct + '%').toggleClass('warn', pct >= 85);
+          $t.find('.aib-tile-s2').html('<b>' + A.human(t.free) + ' frei</b> von ' + A.human(t.total) + ' am Ziel (' + pct + ' % belegt)');
+        } else {
+          $t.find('.aib-bar').hide();
+          $t.find('.aib-tile-s2').text(t && t.error ? 'Freier Platz am Ziel: ' + t.error : '');
+        }
+      }, function (e) { $t.find('.aib-tile-v').text('–'); $t.find('.aib-tile-s2').text(e); });
+    },
     render: function (s) {
-      var phases = { start: 'Start', stop: 'Container werden gestoppt', snapshot: 'Snapshot', backup: 'Sicherung läuft', forget: 'Aufbewahrung', prune: 'Aufräumen', check: 'Prüfung', restore: 'Wiederherstellung', idle: 'Bereit' };
-      var $b = $('#aib-state');
-      if (s.running) {
-        var t = (s.kind || 'Vorgang') + ' läuft seit ' + A.date(s.started) + ' – ' + (phases[s.phase] || s.phase || '') + (s.current ? ' (' + s.current + ')' : '');
-        $b.html('<span class="aib-badge orange">LÄUFT</span> ' + A.esc(t));
-        var p = s.progress;
-        if (p && s.phase === 'backup') {
-          $('#aib-progress').show().children().css('width', Math.min(100, p.percent || 0) + '%');
-          $('#aib-progress-text').text(p.container + ': ' + (p.percent || 0) + ' % – ' + A.human(p.bytes_done) + ' von ' + A.human(p.total_bytes) + ', ' + (p.files_done || 0) + ' von ' + (p.total_files || 0) + ' Dateien');
-        } else { $('#aib-progress').hide(); $('#aib-progress-text').text(''); }
-        $('#aib-cancel').show(); $('#aib-run-all,#aib-run-dry').prop('disabled', true);
-      } else {
-        $b.html('<span class="aib-badge green">BEREIT</span> ' + (s.schedule_active ? 'Zeitplan aktiv (' + A.esc(s.schedule) + ')' : 'Zeitplan aus'));
-        $('#aib-progress').hide(); $('#aib-progress-text').text('');
-        $('#aib-cancel').hide(); $('#aib-run-all,#aib-run-dry').prop('disabled', !s.configured);
-      }
+      var phases = { start: 'Vorbereitung', stop: 'Container werden gestoppt', snapshot: 'Snapshot wird erstellt', backup: 'Daten werden gesichert', forget: 'Alte Versionen aufräumen',
+        prune: 'Speicher aufräumen', check: 'Prüfung', restore: 'Wiederherstellung', unlock: 'Sperren lösen', idle: '' };
       $('#aib-setup-hint').toggle(!s.configured);
-      var l = s.last, $t = $('#aib-last');
-      if (!l) { $t.html('<p class="aib-muted">Noch kein Lauf.</p>'); return; }
-      var cls = { ok: 'green', warning: 'orange', error: 'red' }[l.result] || '';
-      var txt = { ok: 'erfolgreich', warning: 'mit Warnungen', error: 'fehlgeschlagen' }[l.result] || l.result;
-      var h = '<p><span class="aib-badge ' + cls + '">' + A.esc(txt) + '</span> ' + A.esc(l.kind) + ' am ' + A.date(l.finished) +
-        ' · Dauer ' + A.dur(l.duration) + ' · ' + l.errors + ' Fehler, ' + l.warnings + ' Warnungen</p>';
-      var rows = '';
-      $.each(l.containers || {}, function (n, r) {
-        var rc = { ok: 'green', warning: 'orange', error: 'red', cancelled: 'red' }[r.status] || '';
-        var rt = { ok: 'OK', warning: 'Warnung', error: 'Fehler', cancelled: 'abgebrochen', pending: 'abgebrochen' }[r.status] || r.status;
-        rows += '<tr><td>' + A.esc(n) + '</td><td><span class="aib-badge ' + rc + '">' + A.esc(rt) + '</span></td><td>' + A.human(r.data_added) +
-          '</td><td>' + (r.files_new === null || r.files_new === undefined ? '–' : r.files_new + ' / ' + r.files_changed) + '</td><td>' + A.human(r.total_bytes) +
-          '</td><td>' + (r.downtime ? A.dur(r.downtime) : '–') + '</td><td>' + A.dur(r.duration) + '</td></tr>';
+      // tile: state
+      if (s.running) Status.tile('aib-t-state', 'Läuft', A.esc(s.kind || 'Vorgang'), 'orange');
+      else if (!s.configured) Status.tile('aib-t-state', 'Nicht eingerichtet', '<a href="#" onclick="AIB.gotoTab(\'Einrichtung\');return false">Einrichtung starten</a>', 'orange');
+      else if (s.last && s.last.result === 'error') Status.tile('aib-t-state', 'Achtung', 'letzter Lauf fehlgeschlagen', 'red');
+      else Status.tile('aib-t-state', 'Bereit', s.schedule_active ? 'Zeitplan aktiv' : 'Zeitplan aus', 'green');
+      // tile: last backup
+      var lb = null; $.each(s.history || [], function (_, h) { if (!lb && h.kind === 'Backup') lb = h; });
+      if (lb) { var rr = RES[lb.result] || ['', lb.result]; Status.tile('aib-t-last', A.ago(lb.finished, s.now), A.date(lb.finished) + ' · <span class="aib-badge ' + rr[0] + '">' + rr[1] + '</span>', rr[0]); }
+      else Status.tile('aib-t-last', 'noch keins', '', '');
+      // tile: next
+      Status.tile('aib-t-next', s.next_run ? A.until(s.next_run, s.now) : 'kein Zeitplan', s.next_run ? A.date(s.next_run) + ' Uhr' :
+        '<a href="#" onclick="AIB.gotoTab(\'Zeitplan & Regeln\');return false">Zeitplan einstellen</a>', '');
+      // running job
+      if (s.running) {
+        $('#aib-job').show();
+        $('#aib-job-title').text(s.kind || 'Vorgang');
+        $('#aib-job-time').text('seit ' + A.date(s.started) + ' (' + A.dur((new Date(s.now) - new Date(s.started)) / 1000) + ')');
+        var ph = phases[s.phase] || s.phase || '';
+        var cnt = s.run_total ? ' – Container ' + Math.min((s.run_done || 0) + 1, s.run_total) + ' von ' + s.run_total : '';
+        $('#aib-job-phase').html('<b>' + A.esc(ph) + '</b>' + (s.current ? ': ' + A.esc(s.current) : '') + A.esc(cnt));
+        var p = s.progress, pct = 0, det = '';
+        if (s.run_total) pct = 100 * (s.run_done || 0) / s.run_total;
+        if (p && s.phase === 'backup') {
+          if (s.run_total) pct += (p.percent || 0) / s.run_total;
+          det = A.esc(p.container) + ': ' + (p.percent || 0) + ' % · ' + A.human(p.bytes_done) + ' von ' + A.human(p.total_bytes) + ' · ' + (p.files_done || 0) + ' von ' + (p.total_files || 0) + ' Dateien';
+        }
+        $('#aib-job-bar').css('width', Math.min(100, pct) + '%');
+        $('#aib-job-detail').html(det);
+        $('#aib-run-all,#aib-run-dry').prop('disabled', true);
+      } else {
+        $('#aib-job').hide();
+        $('#aib-run-all,#aib-run-dry').prop('disabled', !s.configured);
+      }
+      Status.runs(s);
+    },
+    runs: function (s) {
+      var all = $('#aib-hist-all').prop('checked'), h = '', shown = 0;
+      $.each(s.history || [], function (i, r) {
+        if (!all && r.kind !== 'Backup' && r.kind !== 'Testlauf') return;
+        if (++shown > 25) return;
+        var k = String(r.finished || i), rr = RES[r.result] || ['', r.result], cts = r.containers || {}, n = 0, bad = 0;
+        $.each(cts, function (_, c) { n++; if (c.status !== 'ok') bad++; });
+        var ctTxt = n ? (bad ? (n - bad) + ' von ' + n + ' OK' : n + ' OK') : '–';
+        h += '<tr' + (Status.open[k] ? ' class="aib-open"' : '') + '><td>' + A.date(r.finished) + '<div class="aib-muted" style="font-size:11px">' + A.ago(r.finished, s.now) + '</div></td>' +
+          '<td>' + A.esc(r.kind) + (r.trigger ? ' <span class="aib-muted">(' + A.esc(r.trigger) + ')</span>' : '') + '</td>' +
+          '<td><span class="aib-badge ' + rr[0] + '">' + rr[1] + '</span>' + (r.errors ? ' <span class="aib-muted">' + r.errors + ' Fehler</span>' : '') + '</td>' +
+          '<td>' + (bad ? '<span style="color:#e55">' + ctTxt + '</span>' : ctTxt) + '</td><td>' + (r.kind === 'Backup' ? A.human(r.data_added) : '–') + '</td><td>' + A.dur(r.duration) + '</td>' +
+          '<td><input type="button" class="aib-rundet" data-k="' + A.esc(k) + '" value="' + (Status.open[k] ? 'Schließen' : 'Details') + '"></td></tr>';
+        if (Status.open[k]) {
+          var rows = '';
+          $.each(cts, function (name, c) {
+            var cr = CRES[c.status] || ['', c.status];
+            rows += '<tr><td>' + A.esc(name) + '</td><td><span class="aib-badge ' + cr[0] + '">' + cr[1] + '</span></td><td>' + A.human(c.data_added) + '</td><td>' +
+              (c.files_new === null || c.files_new === undefined ? '–' : c.files_new + ' / ' + c.files_changed) + '</td><td>' + A.human(c.total_bytes) + '</td><td>' + (c.downtime ? A.dur(c.downtime) : '–') + '</td><td>' + A.dur(c.duration) + '</td></tr>';
+          });
+          h += '<tr class="aib-detail"><td colspan="7">' + (rows ? '<table class="aib-table aib-sub"><thead><tr><th>Container</th><th>Ergebnis</th><th>Neu hochgeladen</th><th>Neue / geänderte Dateien</th><th>Gelesen</th><th>Ausfallzeit</th><th>Dauer</th></tr></thead><tbody>' + rows + '</tbody></table>' : '') +
+            (r.log ? '<div class="aib-row"><input type="button" class="aib-runlog" data-log="' + A.esc(r.log) + '" value="Log anzeigen"> <span class="aib-muted aib-mono">' + A.esc(r.log) + '</span></div><div class="aib-log aib-runlogbox" style="display:none"></div>' : '') + '</td></tr>';
+        }
       });
-      if (rows) h += '<table class="tablesorter shift aib-table"><thead><tr><th>Container</th><th>Ergebnis</th><th>Neu hochgeladen</th><th>Neue / geänderte Dateien</th><th>Gelesen</th><th>Ausfallzeit</th><th>Dauer</th></tr></thead><tbody>' + rows + '</tbody></table>';
-      $t.html(h);
+      $('#aib-runs').html(h || '<tr><td colspan="7" class="aib-muted">Noch keine Läufe.</td></tr>');
     }
   };
   A.Status = Status;
