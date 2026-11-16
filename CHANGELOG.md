@@ -1,3 +1,6 @@
+###2026.11.16d
+- Fix: Ein Lauf galt als „fehlgeschlagen“, wenn der kurzzeitige ZFS-Snapshot direkt nach der Sicherung noch belegt war („dataset is busy“). Der Snapshot wird jetzt ausgehängt und das Löschen einige Sekunden lang wiederholt; klappt es trotzdem nicht, gibt es nur eine Warnung und er wird beim nächsten Snapshot bzw. Lauf entfernt.
+
 ###2026.11.16c
 - Status-Seite neu: Kacheln für Zustand, letztes Backup, nächstes Backup und Speicher (belegt im Backup-Speicher, Versionen, freier Platz am Ziel mit Balken)
 - Laufender Vorgang mit „Container x von y“, Gesamtfortschritt, Laufzeit und Abbrechen

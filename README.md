@@ -135,6 +135,7 @@ PHP=php RESTIC=restic tests/run-tests.sh                                   # Ker
 PHP=php RESTIC=restic JQUERY=jquery.min.js tests/test-gui.sh                # API und Oberfläche über HTTP (Test-Harness)
 SERVE=1 PHP=php RESTIC=restic JQUERY=jquery.min.js tests/test-gui.sh        # Harness danach im Browser ansehen
 PHP=php RESTIC_BZ2=restic_0.19.1_linux_amd64.bz2 tests/test-plg.sh         # Installer gegen lokalen Server
+PHP=php tests/test-zfs-busy.sh                                             # ZFS-Snapshot „dataset is busy“
 ```
 
 Release:

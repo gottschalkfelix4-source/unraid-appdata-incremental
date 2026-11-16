@@ -174,7 +174,10 @@ final class Storage
         }
         $zfs = Env::bin('zfs');
         [$c] = Cmd::run([$zfs, 'list', '-H', '-t', 'snapshot', '-o', 'name', $u->target]);
-        if ($c === 0) Cmd::run([$zfs, 'destroy', $u->target]);
+        if ($c === 0 && !self::zfsDestroy($u->target, $u->snapRoot)) {
+            Log::error("Alter ZFS-Snapshot {$u->target} ist noch belegt – neuer Snapshot nicht möglich");
+            return false;
+        }
         [$ok] = Cmd::ok([$zfs, 'snapshot', $u->target], 'ZFS-Snapshot');
         $u->created = $ok;
         if ($ok) { @scandir($u->snapRoot); } // trigger automount outside of the mount namespace
@@ -185,8 +188,43 @@ final class Storage
     {
         if (!$u->created) return;
         if ($u->type === 'btrfs') self::destroyPath($u->target);
-        else Cmd::ok([Env::bin('zfs'), 'destroy', $u->target], "Löschen von {$u->target}");
+        elseif (!self::zfsDestroy($u->target, $u->snapRoot)) {
+            Log::warn("ZFS-Snapshot {$u->target} ist noch belegt und bleibt vorerst bestehen – er wird beim nächsten Snapshot bzw. Lauf automatisch gelöscht");
+        }
         $u->created = false;
+    }
+
+    /**
+     * Destroy a ZFS snapshot. Right after a backup the kernel may still hold the snapshot's automount
+     * (".zfs/snapshot/<name>", e.g. while the private mount namespace is torn down) and ZFS answers
+     * "dataset is busy". Unmount it and retry for a few seconds before giving up.
+     */
+    public static function zfsDestroy(string $target, string $snapRoot = ''): bool
+    {
+        $waits = [0, 0.5, 1, 1, 2, 2, 3, 3];
+        $err = '';
+        foreach ($waits as $w) {
+            if ($w > 0) usleep((int)($w * 1000000 * (float)(getenv('AIB_RETRY_SCALE') ?: 1)));
+            if ($snapRoot !== '' && self::isMounted($snapRoot)) Cmd::run([Env::bin('umount'), $snapRoot]);
+            [$c, $o, $e] = Cmd::run([Env::bin('zfs'), 'destroy', $target]);
+            if ($c === 0) return true;
+            $err = trim($e !== '' ? $e : $o);
+            if (stripos($err, 'could not find') !== false || stripos($err, 'does not exist') !== false) return true;
+            if (stripos($err, 'busy') === false) break; // other errors: no point in retrying
+            Log::debug("$target noch belegt, neuer Versuch");
+        }
+        Log::debug("zfs destroy $target: $err");
+        return false;
+    }
+
+    private static function isMounted(string $path): bool
+    {
+        $path = rtrim($path, '/');
+        foreach (@file(Env::procMounts(), FILE_IGNORE_NEW_LINES) ?: [] as $l) {
+            $f = explode(' ', $l);
+            if (isset($f[1]) && preg_replace_callback('/\\\\([0-7]{3})/', fn($m) => chr(octdec($m[1])), $f[1]) === $path) return true;
+        }
+        return false;
     }
 
     private static function destroyPath(string $path): void
@@ -217,7 +255,7 @@ final class Storage
             if ($c === 0) foreach (explode("\n", trim($o)) as $s) {
                 if ($s !== '' && str_ends_with($s, $suffix)) {
                     Log::warn("Alter ZFS-Snapshot $s aus abgebrochenem Lauf wird gelöscht");
-                    Cmd::ok([Env::bin('zfs'), 'destroy', $s], "Löschen von $s");
+                    if (!self::zfsDestroy($s)) Log::warn("$s ist noch belegt – nächster Versuch beim nächsten Lauf");
                 }
             }
         }
