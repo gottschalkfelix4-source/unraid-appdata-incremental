@@ -1,0 +1,32 @@
+Menu="AppdataIncremental:6"
+Title="Wiederherstellen"
+Tag="undo"
+Markdown="false"
+---
+<?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
+<div id="aib-restore" class="aib-wrap">
+  <div class="title"><span class="left"><i class="fa fa-undo title"></i>Wiederherstellen</span></div>
+  <dl><dt>Container:</dt><dd><select id="aib-x-ct"><option value="">– lädt –</option></select></dd></dl>
+  <dl><dt>Version:</dt><dd><select id="aib-x-ver" style="min-width:320px"></select></dd></dl>
+  <dl><dt>Umfang:</dt><dd>
+    <label><input type="radio" name="aib-x-mode" value="container" checked> Ganzer Container</label> &nbsp;
+    <label><input type="radio" name="aib-x-mode" value="files"> Einzelne Dateien / Ordner</label></dd></dl>
+  <div id="aib-x-treebox" style="display:none">
+    <dl><dt>Auswahl:</dt><dd><div id="aib-x-tree" class="aib-tree"></div><span id="aib-x-count" class="aib-muted"></span></dd></dl>
+  </div>
+  <dl><dt>Ziel:</dt><dd>
+    <label><input type="radio" name="aib-x-target" value="folder" checked> In einen Ordner (Live-Daten bleiben unverändert)</label><br>
+    <label><input type="radio" name="aib-x-target" value="inplace"> An Ort und Stelle (alter Stand wird nach <code>.aib-pre-restore-&lt;Zeit&gt;</code> verschoben)</label></dd></dl>
+  <dl id="aib-x-folderrow"><dt>Zielordner:</dt><dd><input type="text" id="aib-x-folder" style="width:380px"></dd></dl>
+  <dl id="aib-x-stoprow" style="display:none"><dt>Container:</dt><dd><label><input type="checkbox" id="aib-x-stop" checked> vorher stoppen und danach wieder starten</label></dd></dl>
+  <dl id="aib-x-deprow" style="display:none"><dt>Andere Container:</dt><dd><label><input type="checkbox" id="aib-x-dep"> auch andere laufende Container stoppen, die diese Ordner nutzen</label></dd></dl>
+  <blockquote class="inline_help">
+    <p><b>In einen Ordner</b>: Die Dateien landen unter <code>&lt;Zielordner&gt;/mnt/…</code> mit ihrem vollen Originalpfad – gut zum Vergleichen oder Herauskopieren.</p>
+    <p><b>An Ort und Stelle (ganzer Container)</b>: Der Container wird gestoppt, der bisherige Inhalt nach <code>.aib-pre-restore-&lt;Zeit&gt;</code> verschoben
+    (nicht gelöscht), die Version eingespielt und der Container wieder gestartet. Ausgeschlossene Ordner (z. B. Caches) bleiben unverändert.</p>
+    <p><b>An Ort und Stelle (einzelne Dateien)</b>: Vorhandene Dateien/Ordner werden zu <code>&lt;Name&gt;.aib-pre-restore-&lt;Zeit&gt;</code> umbenannt.</p>
+    <p>Prüfe danach, ob alles läuft, und lösche die <code>.aib-pre-restore</code>-Kopien erst dann.</p>
+  </blockquote>
+  <dl><dt>&nbsp;</dt><dd><input type="button" id="aib-x-go" value="Wiederherstellen"></dd></dl>
+  <div id="aib-x-msg" class="aib-msg"></div>
+</div>

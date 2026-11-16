@@ -42,6 +42,48 @@ final class Restore
         return true;
     }
 
+    /**
+     * Restore single files/folders to their original place. Existing versions are renamed to
+     * <name>.aib-pre-restore-<time> (nothing is deleted). Optionally stops containers around it.
+     */
+    public function filesInPlace(string $snapId, array $paths, array $stopContainers = []): bool
+    {
+        if (!$paths) throw new \RuntimeException('Keine Dateien gewählt');
+        $paths = Storage::dedupe(array_map(fn($p) => V::absPath((string)$p), $paths));
+        $ts = date('Ymd-His');
+        $stopped = [];
+        $ok = true;
+        try {
+            foreach ($stopContainers as $n) {
+                if (!Docker::isRunning($n)) continue;
+                Log::info("Stoppe $n");
+                if (!Docker::stop($n, (int)$this->cfg->get('stop_timeout', 60))) throw new \RuntimeException("$n ließ sich nicht stoppen");
+                $stopped[] = $n;
+            }
+            foreach ($paths as $p) {
+                $parent = dirname($p);
+                if (!is_dir($parent) && !mkdir($parent, 0755, true)) { Log::error("Kann $parent nicht anlegen"); $ok = false; continue; }
+                $staging = "$parent/.aib-restore-$ts";
+                Log::info("Stelle $p wieder her");
+                [$c] = $this->restic->run(['restore', $snapId, '--target', $staging, '--include', $p]);
+                if ($c !== 0 || !file_exists($staging . $p) && !is_link($staging . $p)) {
+                    Log::error("Wiederherstellung von $p fehlgeschlagen" . ($c !== 0 ? " (Exit $c)" : ' (nicht im Snapshot)'));
+                    Fs::rmTree($staging); $ok = false; continue;
+                }
+                $old = "$p.aib-pre-restore-$ts";
+                if (file_exists($p) || is_link($p)) {
+                    if (!rename($p, $old)) { Log::error("Kann $p nicht verschieben"); Fs::rmTree($staging); $ok = false; continue; }
+                }
+                if (!rename($staging . $p, $p)) { Log::error("Kann wiederhergestellte Version nicht nach $p verschieben – sie liegt in $staging"); $ok = false; continue; }
+                Fs::rmTree($staging);
+                Log::info("$p wiederhergestellt" . (file_exists($old) || is_link($old) ? " (alter Stand: $old)" : ''));
+            }
+        } finally {
+            foreach (array_reverse($stopped) as $n) { Log::info("Starte $n"); Docker::start($n); }
+        }
+        return $ok;
+    }
+
     /** Restore all paths of a container snapshot into a separate folder (nothing live is touched). */
     public function containerToTarget(string $container, string $which, string $target): bool
     {

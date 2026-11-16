@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Aib;
 
-foreach (['Util', 'Config', 'Docker', 'Storage', 'Restic', 'Backup', 'Restore'] as $f) require __DIR__ . "/../include/$f.php";
+foreach (['Util', 'Config', 'Docker', 'Storage', 'Restic', 'Backup', 'Restore', 'Admin'] as $f) require __DIR__ . "/../include/$f.php";
 
 const HELP = <<<TXT
 aib – Appdata Incremental (restic) für Unraid
@@ -25,6 +25,7 @@ Sichern
   aib backup [--container N]... [--dry-run] [--no-forget]
   aib cron                      geplanter Lauf: backup + forget (+ prune/check nach Zeitplan)
   aib forget | prune | check [--subset 5%] | unlock
+  (Jobs zusätzlich mit --quiet: keine Ausgabe, nur Log – so startet die WebGUI)
   aib schedule enable|disable|show   Zeitplan ein/aus (Zeit: schedule.backup in config.json)
   aib cleanup-snapshots         übrig gebliebene Snapshots abgebrochener Läufe löschen
 
@@ -33,6 +34,7 @@ Verlauf & Wiederherstellung
   aib ls <snapshot> [pfad]
   aib diff <snapshotA> <snapshotB>
   aib restore-files <snapshot> --target <ordner> [--include <pfad>]...
+  aib restore-files <snapshot> --in-place --yes --include <pfad>... [--stop <container>]...
   aib restore-container <name> [--snapshot ID|latest] --target <ordner>
   aib restore-container <name> [--snapshot ID|latest] --in-place --yes [--stop-dependents]
 
@@ -44,13 +46,13 @@ TXT;
 function parseArgs(array $argv): array
 {
     $pos = []; $opt = [];
-    $multi = ['container', 'include'];
+    $multi = ['container', 'include', 'stop'];
     for ($i = 0; $i < count($argv); $i++) {
         $a = $argv[$i];
         if (str_starts_with($a, '--')) {
             $k = substr($a, 2); $v = true;
             if (str_contains($k, '=')) [$k, $v] = explode('=', $k, 2);
-            elseif (in_array($k, ['container', 'include', 'target', 'snapshot', 'subset'], true)) $v = $argv[++$i] ?? '';
+            elseif (in_array($k, ['container', 'include', 'target', 'snapshot', 'subset', 'stop'], true)) $v = $argv[++$i] ?? '';
             if (in_array($k, $multi, true)) $opt[$k][] = $v; else $opt[$k] = $v;
         } else {
             $pos[] = $a;
@@ -80,9 +82,11 @@ function persistLog(Config $cfg): void
     foreach (array_slice($logs, 0, max(0, count($logs) - $keep)) as $old) @unlink($old);
 }
 
-function finishRun(Config $cfg, string $kind, bool $ok, array $results, float $t0): void
+function finishRun(Config $cfg, string $kind, bool $ok, array $results, float $t0, bool $notifySuccess = false): void
 {
     $level = !$ok || Log::$errors ? 'error' : (Log::$warnings ? 'warning' : 'ok');
+    foreach ($results as &$r) if (($r['status'] ?? '') === 'pending') $r['status'] = 'cancelled';
+    unset($r);
     $dur = (int)round(microtime(true) - $t0);
     $summary = sprintf('%s %s nach %s (%d Fehler, %d Warnungen)', $kind, $level === 'ok' ? 'erfolgreich' : ($level === 'warning' ? 'mit Warnungen' : 'FEHLGESCHLAGEN'), gmdate('H:i:s', $dur), Log::$errors, Log::$warnings);
     Log::info($summary);
@@ -94,65 +98,49 @@ function finishRun(Config $cfg, string $kind, bool $ok, array $results, float $t
     $detail = implode('; ', array_slice(Log::$problems, 0, 5));
     if ($level === 'error' && $n['on_error']) Notify::send('error', "Appdata Incremental: $kind fehlgeschlagen", $detail ?: $summary);
     elseif ($level === 'warning' && $n['on_warning']) Notify::send('warning', "Appdata Incremental: $kind mit Warnungen", $detail ?: $summary);
-    elseif ($level === 'ok' && $n['on_success']) Notify::send('normal', "Appdata Incremental: $kind erfolgreich", $summary);
+    elseif ($level === 'ok' && ($n['on_success'] || $notifySuccess)) Notify::send('normal', "Appdata Incremental: $kind erfolgreich", $summary);
     persistLog($cfg);
 }
 
-function cronFile(): string { return Env::cfgDir() . '/' . PLUGIN . '.cron'; }
-
-/** Write or remove the cron file according to schedule.enabled / schedule.backup. */
-function scheduleApply(Config $cfg): string
+/** Run a logged job: lock, state, signals, summary, notification. */
+function runJob(Config $cfg, string $logKind, string $label, callable $fn, bool $echo = true): int
 {
-    $expr = trim((string)$cfg->get('schedule.backup', ''));
-    $f = cronFile();
-    if (!$cfg->get('schedule.enabled') || $expr === '') { @unlink($f); $msg = 'Zeitplan aus'; }
-    else {
-        Fs::writeAtomic($f, "# Appdata Incremental\n$expr " . Env::aibBin() . " cron > /dev/null 2>&1\n");
-        $msg = "Zeitplan gesetzt: $expr";
+    needLock();
+    $t0 = microtime(true);
+    Log::open($logKind);
+    Log::$echo = $echo;
+    State::update(['running' => true, 'pid' => getmypid(), 'started' => date('c'), 'phase' => $logKind, 'kind' => $label, 'current' => null, 'progress' => null]);
+    if (function_exists('pcntl_async_signals')) {
+        pcntl_async_signals(true);
+        $h = function (int $sig) { throw new \RuntimeException("Abbruch durch Signal $sig"); };
+        pcntl_signal(SIGTERM, $h); pcntl_signal(SIGINT, $h); pcntl_signal(SIGHUP, $h);
     }
-    if (is_executable(Env::updateCronBin())) Cmd::run([Env::updateCronBin()]);
-    return $msg;
+    $ok = false; $results = [];
+    try {
+        $ok = (bool)$fn($results);
+    } catch (\Throwable $e) {
+        Log::error($e->getMessage());
+        $ok = false;
+    } finally {
+        finishRun($cfg, $label, $ok, $results, $t0, $logKind === 'restore');
+        Log::close();
+    }
+    return $ok ? 0 : 1;
 }
 
 function doctor(Config $cfg): int
 {
     $bad = 0;
-    $line = function (bool $ok, string $what, string $info = '') use (&$bad) {
-        if (!$ok) $bad++;
-        out(sprintf("[%s] %s%s\n", $ok ? ' OK ' : 'FEHL', $what, $info !== '' ? " – $info" : ''));
-    };
-    $line(version_compare(PHP_VERSION, '8.1', '>='), 'PHP ' . PHP_VERSION);
-    foreach (['docker', 'unshare', 'btrfs', 'zfs'] as $b) {
-        $need = in_array($b, ['docker', 'unshare'], true);
-        $ex = Cmd::exists(Env::bin($b));
-        if ($ex || $need) $line($ex, "Programm $b");
+    foreach (Doctor::run($cfg) as $l) {
+        if (!$l['ok']) $bad++;
+        out(sprintf("[%s] %s%s\n", $l['ok'] ? ' OK ' : 'FEHL', $l['what'], $l['info'] !== '' ? " – {$l['info']}" : ''));
     }
-    $r = new Restic($cfg);
-    [$c, $o] = is_executable($r->bin()) ? Cmd::run([$r->bin(), 'version']) : [1, ''];
-    $line($c === 0, 'restic', trim($o) ?: $r->bin() . ' fehlt');
-    $v = $cfg->validate();
-    $line(!$v, 'Konfiguration ' . Config::file(), implode('; ', $v));
-    foreach ($r->checkReady() as $p) $line(false, $p);
-    if (!$r->checkReady()) $line(true, 'Repository/Passwort/SSH-Key gesetzt');
-    if ($cfg->get('snapshot.mode') === 'auto') {
-        foreach (Storage::mounts() as $m) {
-            if (!in_array($m['type'], ['btrfs', 'zfs'], true) || !str_starts_with($m['mnt'], rtrim(Env::mntRoot(), '/') . '/')) continue;
-            if ($m['type'] === 'btrfs') {
-                $parent = $m['mnt'] . '/' . dirname(trim((string)$cfg->get('snapshot.btrfs_dir'), '/'));
-                $line(true, "btrfs-Pool {$m['mnt']}", is_dir($parent) ? "Snapshots unter {$m['mnt']}/" . $cfg->get('snapshot.btrfs_dir') : "Ordner $parent fehlt – Snapshots hier nicht möglich");
-            } elseif (!str_contains($m['dev'], '@')) {
-                $line(true, "ZFS-Dataset {$m['dev']}", "Mount {$m['mnt']}");
-            }
-        }
-    }
-    $line(true, 'Zeitplan', is_file(cronFile()) ? 'aktiv: ' . trim((string)$cfg->get('schedule.backup')) : 'aus – einschalten mit: aib schedule enable');
     try {
-        $b = new Backup($cfg, $r);
-        $groups = $b->plan();
-        $line(true, 'Docker erreichbar', count(Docker::list()) . ' Container');
-        out("\n" . $b->describePlan($groups));
+        $b = new Backup($cfg, new Restic($cfg));
+        out("\n" . $b->describePlan($b->plan()));
     } catch (\Throwable $e) {
-        $line(false, 'Docker/Plan', $e->getMessage());
+        $bad++;
+        out('Plan: ' . $e->getMessage() . "\n");
     }
     return $bad ? 1 : 0;
 }
@@ -182,31 +170,9 @@ function containersTable(Config $cfg, bool $json): void
 
 function selftestSnapshot(Config $cfg, string $path): int
 {
-    $res = Storage::resolve($path, $cfg);
-    if (!$res['paths']) { out(implode("\n", $res['warnings']) . "\n"); return 1; }
-    $plan = Storage::plan($res['paths'], $cfg);
-    if ($plan['unsupported']) { out('Kein btrfs/ZFS: ' . implode(', ', $plan['unsupported']) . "\n"); return 1; }
-    $ok = true; $units = [];
-    try {
-        foreach ($plan['units'] as $u) {
-            out('Erstelle ' . $u->describe() . "\n");
-            if (!Storage::create($u)) { $ok = false; break; }
-            $units[] = $u;
-        }
-        if ($ok) {
-            $marker = $res['paths'][0] . '/.aib-selftest-' . getmypid();
-            @file_put_contents($marker, 'x'); // created after the snapshot → must NOT be visible inside the namespace
-            $argv = Storage::wrapWithBinds($plan['binds'], ['/bin/bash', '-c', 'for p in "$@"; do echo "== $p"; ls -la "$p" | head -15; done; test ! -e ' . escapeshellarg($marker), 'x', ...$res['paths']]);
-            [$c, $o, $e] = Cmd::run($argv);
-            @unlink($marker);
-            out($o . $e);
-            out($c === 0 ? "OK: Namespace sieht den eingefrorenen Snapshot-Stand.\n" : "FEHLER: Bind-Mount/Namespace funktioniert nicht wie erwartet (Exit $c).\n");
-            $ok = $c === 0;
-        }
-    } finally {
-        foreach ($units as $u) { out('Lösche ' . $u->describe() . "\n"); Storage::destroy($u); }
-    }
-    return $ok ? 0 : 1;
+    $r = Doctor::selftest($cfg, $path);
+    out(implode("\n", $r['log']) . "\n");
+    return $r['ok'] ? 0 : 1;
 }
 
 function main(array $argv): int
@@ -276,14 +242,12 @@ function main(array $argv): int
 
         case 'selftest-snapshot':
             if (!isset($pos[1])) throw new \RuntimeException('Pfad fehlt');
-            needLock();
             return selftestSnapshot($cfg, $pos[1]);
 
         case 'init':
         case 'test-repo':
-        case 'unlock':
             if ($p = $restic->checkReady()) throw new \RuntimeException(implode('; ', $p));
-            $sub = ['init' => ['init'], 'test-repo' => ['cat', 'config'], 'unlock' => ['unlock']][$cmd];
+            $sub = ['init' => ['init'], 'test-repo' => ['cat', 'config']][$cmd];
             [$c, $o, $e] = $restic->run($sub, null, false);
             out($o . $e);
             if ($cmd === 'test-repo' && $c === 0) out("Repository erreichbar.\n");
@@ -296,8 +260,8 @@ function main(array $argv): int
             $dry = isset($opt['dry-run']);
             $t0 = microtime(true);
             Log::open($cmd);
-            Log::$echo = $cmd !== 'cron';
-            State::update(['running' => true, 'pid' => getmypid(), 'started' => date('c'), 'phase' => 'start']);
+            Log::$echo = $cmd !== 'cron' && !isset($opt['quiet']);
+            State::update(['running' => true, 'pid' => getmypid(), 'started' => date('c'), 'phase' => 'start', 'kind' => $dry ? 'Testlauf' : 'Backup', 'current' => null, 'progress' => null]);
             $b = new Backup($cfg, $restic, $dry);
             $ok = false;
             if (function_exists('pcntl_async_signals')) {
@@ -341,17 +305,17 @@ function main(array $argv): int
         case 'forget':
         case 'prune':
         case 'check':
+        case 'unlock':
             if ($p = $restic->checkReady()) throw new \RuntimeException(implode('; ', $p));
-            needLock();
-            $t0 = microtime(true);
-            Log::open($cmd);
-            if ($cmd === 'forget') $ok = (new Backup($cfg, $restic))->forget();
-            elseif ($cmd === 'prune') $ok = $restic->run(['prune'])[0] === 0;
-            else $ok = $restic->run(['check', '--read-data-subset', (string)($opt['subset'] ?? $cfg->get('schedule.check_subset', '2%'))])[0] === 0;
-            if (!$ok) Log::error("$cmd fehlgeschlagen");
-            finishRun($cfg, ucfirst($cmd), $ok, [], $t0);
-            Log::close();
-            return $ok ? 0 : 1;
+            $labels = ['forget' => 'Aufbewahrung', 'prune' => 'Aufräumen (prune)', 'check' => 'Prüfung (check)', 'unlock' => 'Sperren lösen'];
+            return runJob($cfg, $cmd, $labels[$cmd], function () use ($cmd, $cfg, $restic, $opt) {
+                if ($cmd === 'forget') return (new Backup($cfg, $restic))->forget();
+                if ($cmd === 'prune') $c = $restic->run(['prune'])[0];
+                elseif ($cmd === 'unlock') $c = $restic->run(['unlock'])[0];
+                else $c = $restic->run(['check', '--read-data-subset', (string)($opt['subset'] ?? $cfg->get('schedule.check_subset', '2%'))])[0];
+                if ($c !== 0) Log::error("$cmd fehlgeschlagen (Exit $c)");
+                return $c === 0;
+            }, !isset($opt['quiet']));
 
         case 'snapshots':
             $snaps = $restic->snapshots($only[0] ?? null);
@@ -378,24 +342,27 @@ function main(array $argv): int
             return $c;
 
         case 'restore-files':
-            if (!isset($pos[1]) || empty($opt['target']) || $opt['target'] === true) throw new \RuntimeException('Aufruf: aib restore-files <snapshot> --target <ordner> [--include <pfad>]...');
-            needLock();
-            Log::open('restore');
-            $ok = (new Restore($cfg, $restic))->restoreFiles($pos[1], (string)$opt['target'], $opt['include'] ?? []);
-            Log::close();
-            return $ok ? 0 : 1;
+            if (!isset($pos[1])) throw new \RuntimeException('Aufruf: aib restore-files <snapshot> (--target <ordner> | --in-place --yes [--stop <container>]...) --include <pfad>...');
+            $snap = V::snapshotId($pos[1]);
+            $inc = array_map(fn($x) => V::absPath((string)$x), $opt['include'] ?? []);
+            $r = new Restore($cfg, $restic);
+            if (isset($opt['in-place'])) {
+                if (!$inc) throw new \RuntimeException('--include <pfad> angeben');
+                if (!isset($opt['yes'])) { out("Würde an Ort und Stelle wiederherstellen (alter Stand → <name>.aib-pre-restore-<zeit>):\n  " . implode("\n  ", $inc) . "\nZum Ausführen --yes anhängen.\n"); return 2; }
+                $stop = array_map(fn($x) => V::containerName((string)$x), $opt['stop'] ?? []);
+                return runJob($cfg, 'restore', 'Wiederherstellung', fn() => $r->filesInPlace($snap, $inc, $stop), !isset($opt['quiet']));
+            }
+            if (empty($opt['target']) || !is_string($opt['target'])) throw new \RuntimeException('--target <ordner> oder --in-place angeben');
+            $target = V::absPath($opt['target'], 'Zielordner');
+            return runJob($cfg, 'restore', 'Wiederherstellung', fn() => $r->restoreFiles($snap, $target, $inc), !isset($opt['quiet']));
 
         case 'restore-container':
-            $name = $pos[1] ?? null;
-            if ($name === null) throw new \RuntimeException('Container fehlt');
-            $which = is_string($opt['snapshot'] ?? null) ? $opt['snapshot'] : 'latest';
+            $name = V::containerName((string)($pos[1] ?? ''));
+            $which = V::snapshotId(is_string($opt['snapshot'] ?? null) ? $opt['snapshot'] : 'latest');
             $r = new Restore($cfg, $restic);
             if (!empty($opt['target']) && is_string($opt['target'])) {
-                needLock();
-                Log::open('restore');
-                $ok = $r->containerToTarget($name, $which, $opt['target']);
-                Log::close();
-                return $ok ? 0 : 1;
+                $target = V::absPath($opt['target'], 'Zielordner');
+                return runJob($cfg, 'restore', "Wiederherstellung $name", fn() => $r->containerToTarget($name, $which, $target), !isset($opt['quiet']));
             }
             if (isset($opt['in-place'])) {
                 if (!isset($opt['yes'])) {
@@ -405,22 +372,13 @@ function main(array $argv): int
                     out("Der aktuelle Stand wird nach <pfad>/.aib-pre-restore-<zeit> verschoben (nicht gelöscht).\nZum Ausführen --yes anhängen.\n");
                     return 2;
                 }
-                needLock();
-                Log::open('restore');
-                $ok = false;
-                try { $ok = $r->containerInPlace($name, $which, isset($opt['stop-dependents'])); }
-                catch (\Throwable $e) { Log::error($e->getMessage()); }
-                $level = $ok && !Log::$errors ? 'normal' : 'error';
-                Notify::send($level, "Appdata Incremental: Wiederherstellung $name " . ($level === 'normal' ? 'erfolgreich' : 'fehlgeschlagen'), implode('; ', array_slice(Log::$problems, 0, 3)) ?: 'siehe Log');
-                persistLog($cfg);
-                Log::close();
-                return $ok ? 0 : 1;
+                return runJob($cfg, 'restore', "Wiederherstellung $name", fn() => $r->containerInPlace($name, $which, isset($opt['stop-dependents'])), !isset($opt['quiet']));
             }
             throw new \RuntimeException('--target <ordner> oder --in-place angeben');
 
         case 'schedule':
             $sub = $pos[1] ?? 'show';
-            if ($sub === 'show') { out(is_file(cronFile()) ? file_get_contents(cronFile()) : "Kein Zeitplan aktiv.\n"); return 0; }
+            if ($sub === 'show') { out(is_file(Schedule::cronFile()) ? file_get_contents(Schedule::cronFile()) : "Kein Zeitplan aktiv.\n"); return 0; }
             if ($sub === 'enable' || $sub === 'disable') {
                 if (!is_file(Config::file())) throw new \RuntimeException('Erst Konfiguration anlegen: aib config sync');
                 $cfg->data['schedule']['enabled'] = $sub === 'enable';
@@ -428,7 +386,7 @@ function main(array $argv): int
             } elseif ($sub !== 'apply') {
                 throw new \RuntimeException('aib schedule enable|disable|apply|show');
             }
-            out(scheduleApply($cfg) . "\n");
+            out(Schedule::apply($cfg) . "\n");
             return 0;
 
         case 'cleanup-snapshots':

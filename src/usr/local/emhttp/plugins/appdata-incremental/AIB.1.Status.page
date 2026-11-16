@@ -1,0 +1,32 @@
+Menu="AppdataIncremental:1"
+Title="Status"
+Tag="tachometer"
+Markdown="false"
+---
+<?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
+<div id="aib-status" class="aib-wrap">
+  <div id="aib-setup-hint" class="aib-msg info" style="display:none">Die Einrichtung ist noch nicht fertig. Im Tab <a href="#" onclick="AIB.gotoTab('Ziel');return false">„Ziel“</a> Backup-Ziel, Schlüssel und Passwort einrichten.</div>
+  <div class="title"><span class="left"><i class="fa fa-tachometer title"></i>Aktueller Stand</span></div>
+  <dl><dt>Status:</dt><dd id="aib-state">…</dd></dl>
+  <div id="aib-progress" class="aib-progress" style="display:none"><div></div></div>
+  <div id="aib-progress-text" class="aib-muted"></div>
+  <div class="aib-row">
+    <input type="button" id="aib-run-all" value="Backup jetzt starten" disabled>
+    <input type="button" id="aib-run-dry" value="Testlauf (nichts sichern)" disabled>
+    <input type="button" id="aib-cancel" value="Abbrechen" style="display:none">
+  </div>
+  <blockquote class="inline_help">
+    <p><b>Backup jetzt starten</b> sichert alle im Tab „Container“ ausgewählten Container – so wie der geplante Lauf.
+    Einzelne Container lassen sich im Tab „Container“ mit „Jetzt sichern“ starten.</p>
+    <p><b>Testlauf</b> zeigt im Log, was gesichert würde. Es wird nichts hochgeladen und kein Container gestoppt.</p>
+    <p><b>Abbrechen</b> beendet den laufenden Vorgang. Vom Plugin gestoppte Container werden sofort wieder gestartet und Snapshots gelöscht.</p>
+  </blockquote>
+  <div id="aib-status-msg" class="aib-msg"></div>
+
+  <div class="title"><span class="left"><i class="fa fa-list title"></i>Letzter Lauf</span></div>
+  <div id="aib-last"><p class="aib-muted">…</p></div>
+
+  <div class="title"><span class="left"><i class="fa fa-terminal title"></i>Live-Log</span><span class="right aib-muted aib-mono" id="aib-logname"></span></div>
+  <div id="aib-livelog" class="aib-log"></div>
+  <div class="aib-row"><input type="button" id="aib-log-clear" value="Anzeige leeren"><span class="aib-muted">Ältere Logs: Tab „Logs &amp; Werkzeuge“</span></div>
+</div>

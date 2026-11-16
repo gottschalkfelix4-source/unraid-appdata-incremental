@@ -15,6 +15,8 @@ final class Config
     {
         $cfg = Env::cfgDir();
         return [
+            // backup target; type "" = use 'repository' as is (CLI/legacy)
+            'target' => ['type' => '', 'host' => '', 'user' => '', 'port' => 23, 'path' => 'restic-appdata', 'local_path' => '', 'custom' => ''],
             // restic repository, e.g. "sftp:user@host:restic-appdata" (SFTP) or a local path
             'repository' => '',
             'password_file' => "$cfg/secrets/repo.pass",
@@ -43,6 +45,7 @@ final class Config
             'schedule' => [
                 'enabled' => false,          // aib schedule enable|disable
                 'backup' => '0 2 * * *',     // cron expression
+                'frequency' => 'daily', 'hour' => 2, 'minute' => 0, 'weekday' => 0, 'monthday' => 1, // GUI fields
                 'prune_weekday' => 0,        // 0 = Sunday, -1 = never automatically
                 'check_day' => 1,            // day of month, 0 = never automatically
                 'check_subset' => '2%',

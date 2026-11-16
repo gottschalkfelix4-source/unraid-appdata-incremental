@@ -12,7 +12,7 @@ final class Restic
     public function env(): array
     {
         $e = [
-            'RESTIC_REPOSITORY' => (string)$this->cfg->get('repository'),
+            'RESTIC_REPOSITORY' => Target::repository($this->cfg),
             'RESTIC_PASSWORD_FILE' => (string)$this->cfg->get('password_file'),
             'RESTIC_CACHE_DIR' => (string)$this->cfg->get('restic_cache_dir'),
             'RESTIC_PROGRESS_FPS' => '0.0166', // ~1 status line per minute in --json mode
@@ -35,9 +35,9 @@ final class Restic
     /** Own ssh call for sftp repositories (key, port, known_hosts of the plugin). */
     public function sftpCommand(): ?string
     {
-        $repo = (string)$this->cfg->get('repository');
+        $repo = Target::repository($this->cfg);
         if (!str_starts_with($repo, 'sftp:')) return null;
-        $port = (int)$this->cfg->get('ssh.port', 22);
+        $port = Target::sshPort($this->cfg);
         if (preg_match('#^sftp://([^/@]+@)?([^/:]+)(?::(\d+))?/#', $repo, $m)) {
             $userHost = $m[1] . $m[2];
             if (!empty($m[3])) $port = (int)$m[3];
@@ -104,7 +104,7 @@ final class Restic
     public function snapshots(?string $container = null): array
     {
         $tag = 'aib' . ($container !== null ? ',ct:' . $container : '');
-        $list = $this->json(['snapshots', '--tag', $tag, '--host', (string)$this->cfg->get('host')]) ?: [];
+        $list = $this->json(['snapshots', '--no-lock', '--tag', $tag, '--host', (string)$this->cfg->get('host')]) ?: [];
         usort($list, fn($a, $b) => strcmp($a['time'], $b['time']));
         return $list;
     }
@@ -119,7 +119,7 @@ final class Restic
     {
         $p = [];
         if (!is_executable($this->bin())) $p[] = 'restic fehlt: ' . $this->bin();
-        if ((string)$this->cfg->get('repository') === '') $p[] = 'repository ist nicht gesetzt';
+        if (Target::repository($this->cfg) === '') $p[] = 'Backup-Ziel ist nicht eingerichtet';
         $pw = (string)$this->cfg->get('password_file');
         if (!is_file($pw) || trim((string)@file_get_contents($pw)) === '') $p[] = "Passwortdatei fehlt oder ist leer: $pw";
         if ($this->sftpCommand() !== null && !is_file((string)$this->cfg->get('ssh.key_file'))) $p[] = 'SSH-Key fehlt: ' . $this->cfg->get('ssh.key_file');

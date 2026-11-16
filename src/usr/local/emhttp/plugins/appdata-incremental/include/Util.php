@@ -24,6 +24,8 @@ final class Env
     /** External binaries: AIB_BIN_DOCKER, AIB_BIN_BTRFS, AIB_BIN_ZFS, AIB_BIN_UNSHARE */
     public static function bin(string $name): string { return self::e('AIB_BIN_' . strtoupper($name), $name); }
 
+    public static function get(string $k, string $d): string { return self::e($k, $d); }
+
     private static function e(string $k, string $d): string
     {
         $v = getenv($k);

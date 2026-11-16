@@ -1,0 +1,31 @@
+Menu="AppdataIncremental:2"
+Title="Container"
+Tag="cubes"
+Markdown="false"
+---
+<?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
+<div id="aib-containers" class="aib-wrap">
+  <div class="aib-row">
+    <input type="button" id="aib-ct-save" value="Speichern">
+    <input type="button" id="aib-ct-reload" value="Neu laden">
+    <input type="button" id="aib-ct-all" value="Alle sichern">
+    <input type="button" id="aib-ct-none" value="Keine sichern">
+    <input type="text" id="aib-ct-filter" placeholder="Filter …" style="width:180px">
+  </div>
+  <blockquote class="inline_help">
+    <p>Alle Docker-Container werden angezeigt – auch solche ohne Unraid-Vorlage (z. B. Compose oder von anderen Tools angelegt).
+    Gesichert werden ihre Ordner unterhalb von <code>appdata</code>; liegt ein Ordner auf mehreren Pools, werden alle Teile gesichert.</p>
+    <p><b>Sichern</b>: Container in die Sicherung aufnehmen. <b>Stoppen</b>: Container vor dem Snapshot kurz stoppen (empfohlen für Datenbanken).
+    Die Ausfallzeit beträgt nur Stopp + Snapshot + Start; gesichert wird danach aus dem Snapshot.</p>
+    <p><b>Gruppe</b>: Container mit gleicher Gruppe werden zusammen gestoppt und gesnapshottet (z. B. App + Datenbank).
+    <b>Reihenfolge</b>: kleinere Zahl = früher.</p>
+    <p><b>Ausschlüsse</b>: Ordner/Dateien, die nicht gesichert werden, z. B. Caches, Logs oder Daten, die ein Programm selbst sichert.
+    Über „Ausschlüsse …“ lassen sich Ordner per Klick auswählen oder Vorlagen anwenden.</p>
+    <p>„neu“ = Container ist noch nicht gespeichert und nutzt die Voreinstellung bzw. eine Regel (Tab „Zeitplan &amp; Regeln“).</p>
+  </blockquote>
+  <div id="aib-ct-msg" class="aib-msg"></div>
+  <table class="tablesorter shift aib-table">
+    <thead><tr><th>Container</th><th>Sichern</th><th>Stoppen</th><th>Gruppe</th><th>Reihenfolge</th><th>Ausschlüsse</th><th></th></tr></thead>
+    <tbody id="aib-ct-body"></tbody>
+  </table>
+</div>

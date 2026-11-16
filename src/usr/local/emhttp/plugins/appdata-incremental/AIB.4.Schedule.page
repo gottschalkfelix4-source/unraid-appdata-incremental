@@ -1,0 +1,69 @@
+Menu="AppdataIncremental:4"
+Title="Zeitplan & Regeln"
+Tag="clock-o"
+Markdown="false"
+---
+<?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
+<div id="aib-schedule" class="aib-wrap">
+  <div class="title"><span class="left"><i class="fa fa-clock-o title"></i>Zeitplan</span></div>
+  <dl><dt>Geplantes Backup:</dt><dd><select id="aib-s-enabled"><option value="1">Aktiv</option><option value="0">Aus</option></select></dd></dl>
+  <dl><dt>Häufigkeit:</dt><dd><select id="aib-s-freq">
+    <option value="hourly">Stündlich</option><option value="daily">Täglich</option><option value="weekly">Wöchentlich</option>
+    <option value="monthly">Monatlich</option><option value="custom">Eigener Cron-Ausdruck</option></select></dd></dl>
+  <dl class="aib-s-wd"><dt>Wochentag:</dt><dd><select id="aib-s-weekday"><option value="1">Montag</option><option value="2">Dienstag</option><option value="3">Mittwoch</option>
+    <option value="4">Donnerstag</option><option value="5">Freitag</option><option value="6">Samstag</option><option value="0">Sonntag</option></select></dd></dl>
+  <dl class="aib-s-md"><dt>Tag im Monat:</dt><dd><select id="aib-s-monthday"></select></dd></dl>
+  <dl class="aib-s-time"><dt>Uhrzeit:</dt><dd><span class="aib-s-hourpart"><select id="aib-s-hour"></select> : </span><select id="aib-s-minute"></select> <span class="aib-muted aib-s-hourpart">Uhr</span></dd></dl>
+  <dl class="aib-s-custom"><dt>Cron-Ausdruck:</dt><dd><input type="text" id="aib-s-custom" class="aib-mono" style="width:200px" placeholder="0 2 * * *"></dd></dl>
+  <dl><dt>Aktuell:</dt><dd class="aib-mono" id="aib-s-cron"></dd></dl>
+  <blockquote class="inline_help"><p>Am besten nachts und nicht gleichzeitig mit dem Mover oder anderen Backups. Die Container werden nur für Stopp + Snapshot + Start angehalten.</p></blockquote>
+  <dl><dt>Aufräumen (prune):</dt><dd><select id="aib-s-prune"><option value="-1">nie automatisch</option><option value="0">sonntags</option><option value="1">montags</option>
+    <option value="2">dienstags</option><option value="3">mittwochs</option><option value="4">donnerstags</option><option value="5">freitags</option><option value="6">samstags</option></select></dd></dl>
+  <dl><dt>Integritätsprüfung:</dt><dd><select id="aib-s-checkday"></select> Stichprobe <input type="text" id="aib-s-subset" style="width:60px"></dd></dl>
+  <blockquote class="inline_help"><p><b>Aufräumen</b> löscht Daten, die zu keiner aufbewahrten Version mehr gehören (läuft im Anschluss an das geplante Backup).
+  <b>Integritätsprüfung</b> liest zusätzlich eine Stichprobe der gespeicherten Daten (z. B. 2 %) und meldet Fehler.</p></blockquote>
+
+  <div class="title"><span class="left"><i class="fa fa-archive title"></i>Aufbewahrung (pro Container)</span></div>
+  <dl><dt>Tägliche Versionen:</dt><dd><input type="number" id="aib-r-keep_daily" min="0" style="width:80px"></dd></dl>
+  <dl><dt>Wöchentliche Versionen:</dt><dd><input type="number" id="aib-r-keep_weekly" min="0" style="width:80px"></dd></dl>
+  <dl><dt>Monatliche Versionen:</dt><dd><input type="number" id="aib-r-keep_monthly" min="0" style="width:80px"></dd></dl>
+  <dl><dt>Jährliche Versionen:</dt><dd><input type="number" id="aib-r-keep_yearly" min="0" style="width:80px"></dd></dl>
+  <dl><dt>Immer die letzten:</dt><dd><input type="number" id="aib-r-keep_last" min="0" style="width:80px"> Versionen</dd></dl>
+  <dl><dt>Alles behalten innerhalb:</dt><dd><input type="text" id="aib-r-keep_within" style="width:80px" placeholder="z. B. 14d"></dd></dl>
+  <blockquote class="inline_help"><p>Beispiel 7 / 4 / 6: die letzten 7 Tage je eine Version, dazu je eine der letzten 4 Wochen und 6 Monate. 0 = Regel aus.
+  Dank Deduplizierung kosten zusätzliche Versionen nur den Platz der geänderten Daten.</p></blockquote>
+
+  <div class="title"><span class="left"><i class="fa fa-bell title"></i>Benachrichtigungen</span></div>
+  <dl><dt>Bei Fehlern:</dt><dd><select id="aib-n-err"><option value="1">Ja</option><option value="0">Nein</option></select></dd></dl>
+  <dl><dt>Bei Warnungen:</dt><dd><select id="aib-n-warn"><option value="1">Ja</option><option value="0">Nein</option></select></dd></dl>
+  <dl><dt>Bei Erfolg:</dt><dd><select id="aib-n-ok"><option value="1">Ja</option><option value="0">Nein</option></select> <input type="button" id="aib-s-notifytest" value="Testbenachrichtigung"></dd></dl>
+  <blockquote class="inline_help"><p>Es werden die normalen Unraid-Benachrichtigungen benutzt (Einstellungen → Benachrichtigungen legt fest, ob per Browser, E-Mail usw.).</p></blockquote>
+
+  <div class="title"><span class="left"><i class="fa fa-cogs title"></i>Sicherung</span></div>
+  <dl><dt>Snapshots:</dt><dd><select id="aib-o-snap"><option value="auto">btrfs/ZFS-Snapshot (kurze Ausfallzeit)</option><option value="none">Ohne Snapshot (Container bleiben während der Sicherung gestoppt)</option></select></dd></dl>
+  <dl><dt>Wenn der Snapshot fehlschlägt:</dt><dd><select id="aib-o-fail"><option value="backup_stopped">Im gestoppten Zustand sichern</option><option value="skip">Diese Container überspringen</option></select></dd></dl>
+  <dl><dt>Stopp-Timeout:</dt><dd><input type="number" id="aib-o-timeout" min="5" max="600" style="width:80px"> Sekunden</dd></dl>
+  <dl><dt>Kompression:</dt><dd><select id="aib-o-comp"><option value="auto">Automatisch</option><option value="max">Maximal</option><option value="off">Aus</option></select></dd></dl>
+  <dl><dt>Neue Container:</dt><dd>sichern <select id="aib-o-newen"><option value="1">Ja</option><option value="0">Nein</option></select>
+    &nbsp; stoppen <select id="aib-o-newstop"><option value="1">Ja</option><option value="0">Nein</option></select></dd></dl>
+  <dl><dt>Globale Ausschlüsse:</dt><dd><textarea id="aib-o-gex" class="aib-mono" rows="3" style="width:300px" placeholder="*.tmp"></textarea></dd></dl>
+  <blockquote class="inline_help"><p>Globale Ausschlüsse gelten für alle Container (einer pro Zeile). Ohne Schrägstrich mit Platzhalter (<code>*.tmp</code>) überall,
+  sonst relativ zum Appdata-Ordner jedes Containers.</p></blockquote>
+
+  <div class="title"><span class="left"><i class="fa fa-magic title"></i>Regeln für neu gefundene Container</span></div>
+  <blockquote class="inline_help"><p>Regeln wirken, wenn ein Container zum ersten Mal erkannt wird. Das Muster vergleicht die eingebundenen Ordner des Containers,
+  z. B. <code>*/appdata/beispiel</code> oder <code>*/appdata/panel/servers/*</code>. „nicht sichern“ wählt passende Container ab – praktisch für Container,
+  die ein anderes Programm anlegt und selbst sichert.</p></blockquote>
+  <table class="tablesorter shift aib-table"><thead><tr><th>Muster (Mount-Pfad)</th><th>Aktion</th><th>Ausschlüsse</th><th>Stoppen</th><th>Hinweis</th><th></th></tr></thead><tbody id="aib-rules"></tbody></table>
+  <div class="aib-row"><input type="button" id="aib-r-add" value="Regel hinzufügen"></div>
+
+  <div class="aib-row" style="margin-top:16px"><input type="button" id="aib-s-save" value="Übernehmen"></div>
+  <div id="aib-s-msg" class="aib-msg"></div>
+
+  <div class="title"><span class="left"><i class="fa fa-exchange title"></i>Konfiguration importieren / exportieren</span></div>
+  <dl><dt>Datei:</dt><dd><input type="file" id="aib-i-file" accept=".json,application/json"></dd></dl>
+  <dl><dt>oder JSON einfügen:</dt><dd><textarea id="aib-i-json" class="aib-mono" rows="5" style="width:100%;max-width:700px"></textarea></dd></dl>
+  <dl><dt>&nbsp;</dt><dd><input type="button" id="aib-i-go" value="Importieren"> <input type="button" id="aib-i-export" value="Exportieren"></dd></dl>
+  <blockquote class="inline_help"><p>Übernimmt Einstellungen aus einer JSON-Datei (z. B. einer vorbereiteten Vorlage mit Regeln und Ausschlüssen). Schlüssel und Passwort werden dabei nie gelesen oder verändert.</p></blockquote>
+  <div id="aib-i-msg" class="aib-msg"></div>
+</div>

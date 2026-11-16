@@ -1,0 +1,74 @@
+Menu="AppdataIncremental:3"
+Title="Ziel"
+Tag="cloud-upload"
+Markdown="false"
+---
+<?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
+<div id="aib-target" class="aib-wrap">
+  <div class="title"><span class="left"><i class="fa fa-list-ol title"></i>Einrichtung</span></div>
+  <ul id="aib-steps" class="aib-steps"></ul>
+
+  <div class="title"><span class="left"><i class="fa fa-cloud-upload title"></i>1. Backup-Ziel</span></div>
+  <dl><dt>Art des Ziels:</dt><dd><select id="aib-t-type">
+    <option value="sftp">SFTP-Server (z. B. Storage Box, anderer Server)</option>
+    <option value="local">Lokaler Ordner (Disk, Pool oder eingebundene Freigabe)</option>
+    <option value="custom">Benutzerdefiniertes restic-Repository</option>
+  </select></dd></dl>
+  <blockquote class="inline_help"><p>Die Backups landen in einem verschlüsselten restic-Repository. Für SFTP wird ein eigener SSH-Schlüssel des Plugins benutzt (Abschnitt 2).
+  Ein lokaler Ordner kann z. B. ein Array-Share oder ein unter <code>/mnt/remotes</code> eingebundenes Netzlaufwerk sein.</p></blockquote>
+  <dl class="aib-t-sftp"><dt>Server (Host):</dt><dd><input type="text" id="aib-t-host" placeholder="backup.example.com" style="width:300px"></dd></dl>
+  <dl class="aib-t-sftp"><dt>Benutzer:</dt><dd><input type="text" id="aib-t-user" style="width:200px"></dd></dl>
+  <dl class="aib-t-sftp"><dt>SSH-Port:</dt><dd><input type="number" id="aib-t-port" min="1" max="65535" style="width:90px"></dd></dl>
+  <div class="aib-t-sftp"><blockquote class="inline_help"><p>Hetzner Storage Box: Port <b>23</b>, SSH-Support im Konto aktivieren. Empfehlung: einen eigenen Sub-Account nur für dieses Backup anlegen.</p></blockquote></div>
+  <dl class="aib-t-sftp"><dt>Pfad auf dem Server:</dt><dd><input type="text" id="aib-t-path" style="width:300px"></dd></dl>
+  <div class="aib-t-sftp"><blockquote class="inline_help"><p>Ordner für das Repository, relativ zum Home-Verzeichnis des Benutzers (z. B. <code>restic-appdata</code>) oder absolut.</p></blockquote></div>
+  <dl class="aib-t-local"><dt>Ordner:</dt><dd><input type="text" id="aib-t-local" placeholder="/mnt/user/backups/restic-appdata" style="width:360px"></dd></dl>
+  <dl class="aib-t-custom"><dt>Repository:</dt><dd><input type="text" id="aib-t-custom" placeholder="z. B. rest:https://host:8000/repo" style="width:420px"></dd></dl>
+  <div class="aib-t-custom"><blockquote class="inline_help"><p>Jede restic-Repository-Angabe ohne zusätzliche Zugangsdaten (z. B. <code>rest:</code> oder <code>sftp:</code> mit eigener SSH-Konfiguration).</p></blockquote></div>
+  <dl><dt>Ergebnis:</dt><dd class="aib-mono" id="aib-t-eff"></dd></dl>
+  <dl><dt>&nbsp;</dt><dd><input type="button" id="aib-t-save" value="Ziel speichern"></dd></dl>
+  <div id="aib-t-msg" class="aib-msg"></div>
+
+  <div id="aib-keybox">
+    <div class="title"><span class="left"><i class="fa fa-key title"></i>2. SSH-Schlüssel</span></div>
+    <dl><dt>Schlüssel:</dt><dd><span id="aib-k-state">…</span></dd></dl>
+    <dl><dt>&nbsp;</dt><dd><input type="button" id="aib-k-gen" value="Schlüssel erzeugen"></dd></dl>
+    <blockquote class="inline_help"><p>Erzeugt einen eigenen ed25519-Schlüssel für dieses Plugin. Der private Schlüssel bleibt auf dem USB-Stick unter
+    <code>/boot/config/plugins/appdata-incremental/secrets</code> und wird nie angezeigt.</p></blockquote>
+    <dl id="aib-k-pubrow"><dt>Öffentlicher Schlüssel:</dt><dd><textarea id="aib-k-pub" class="aib-pub" readonly></textarea><br><input type="button" id="aib-k-copy" value="Kopieren"></dd></dl>
+    <div id="aib-k-installrow">
+      <dl><dt>Auf dem Server hinterlegen:</dt><dd><select id="aib-k-mode">
+        <option value="storagebox">Hetzner Storage Box (install-ssh-key)</option>
+        <option value="standard">Normaler SSH-Server (~/.ssh/authorized_keys)</option>
+      </select></dd></dl>
+      <dl><dt>Passwort des Zielkontos:</dt><dd><input type="password" id="aib-k-pw" autocomplete="new-password" style="width:240px"> <input type="button" id="aib-k-install" value="Schlüssel hinterlegen"></dd></dl>
+      <blockquote class="inline_help"><p>Das Passwort wird nur für diesen einen Vorgang an <code>ssh</code> übergeben – es wird weder gespeichert noch geloggt.
+      Danach meldet sich das Plugin nur noch mit dem Schlüssel an. Alternativ den öffentlichen Schlüssel oben kopieren und selbst beim Anbieter eintragen.</p></blockquote>
+    </div>
+    <div id="aib-k-msg" class="aib-msg"></div>
+  </div>
+
+  <div class="title"><span class="left"><i class="fa fa-lock title"></i>3. Repository-Passwort</span></div>
+  <dl><dt>Passwort:</dt><dd><span id="aib-p-state">…</span></dd></dl>
+  <dl><dt>&nbsp;</dt><dd><input type="button" id="aib-p-gen" value="Passwort erzeugen"> <input type="button" id="aib-p-own" value="Eigenes Passwort eingeben"></dd></dl>
+  <blockquote class="inline_help"><p>Mit diesem Passwort ist das Repository verschlüsselt. <b>Ohne dieses Passwort sind alle Backups unbrauchbar</b> – auch wenn der Server ausfällt.
+  Es wird nach dem Erzeugen einmal angezeigt und kann als Datei heruntergeladen werden; danach nur noch maskiert.</p></blockquote>
+  <div id="aib-p-ownbox" style="display:none">
+    <dl><dt>Neues Passwort:</dt><dd><input type="password" id="aib-p-1" autocomplete="new-password" style="width:260px"></dd></dl>
+    <dl><dt>Wiederholen:</dt><dd><input type="password" id="aib-p-2" autocomplete="new-password" style="width:260px"> <input type="button" id="aib-p-set" value="Passwort speichern"></dd></dl>
+  </div>
+  <div id="aib-once" class="aib-once" style="display:none">
+    <b><i class="fa fa-exclamation-triangle"></i> Jetzt sichern – wird nur einmal angezeigt:</b><br>
+    <span id="aib-once-pw" class="aib-secret"></span><br>
+    <input type="button" id="aib-once-copy" value="Kopieren"> <input type="button" id="aib-once-dl" value="Als Datei herunterladen">
+    <p>Im Passwortmanager speichern (und eine heruntergeladene Datei danach löschen).</p>
+    <label><input type="checkbox" id="aib-once-done"> Ich habe das Passwort sicher gespeichert – Anzeige schließen</label>
+  </div>
+  <div id="aib-p-msg" class="aib-msg"></div>
+
+  <div class="title"><span class="left"><i class="fa fa-plug title"></i>4. Verbindung &amp; Repository</span></div>
+  <dl><dt>&nbsp;</dt><dd><input type="button" id="aib-c-test" value="Verbindung testen"> <input type="button" id="aib-c-init" value="Repository initialisieren" disabled></dd></dl>
+  <blockquote class="inline_help"><p>„Verbindung testen“ meldet sich am Ziel an und prüft, ob dort schon ein Repository liegt und das Passwort passt.
+  Gibt es noch keines, wird „Repository initialisieren“ freigeschaltet. Ein bestehendes Repository (z. B. nach Neuinstallation) wird einfach weiterverwendet.</p></blockquote>
+  <div id="aib-c-msg" class="aib-msg"></div>
+</div>

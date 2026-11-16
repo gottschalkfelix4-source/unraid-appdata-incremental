@@ -1,0 +1,49 @@
+/* Appdata Incremental – kept small; colors come from the Unraid theme where possible */
+.aib-wrap { margin-bottom: 20px; }
+.aib-wrap .title { margin-top: 18px; }
+.aib-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.aib-row input[type=button], .aib-row button { margin: 0; }
+.aib-muted { opacity: .65; font-size: .92em; }
+.aib-mono, .aib-log, .aib-pub { font-family: "DejaVu Sans Mono", Menlo, Consolas, monospace; font-size: 12px; }
+.aib-log { white-space: pre-wrap; word-break: break-all; max-height: 420px; overflow: auto; padding: 8px 10px; border: 1px solid rgba(128,128,128,.35); border-radius: 4px; background: rgba(0,0,0,.18); margin: 6px 0 0; }
+.aib-pub { width: 100%; max-width: 900px; height: 58px; resize: vertical; }
+.aib-msg { display: none; padding: 7px 10px; border-radius: 4px; margin: 8px 0; border-left: 4px solid; max-width: 900px; }
+.aib-msg.ok { display: block; border-color: #3c9e3c; background: rgba(60,158,60,.13); }
+.aib-msg.err { display: block; border-color: #d33; background: rgba(221,51,51,.13); }
+.aib-msg.info { display: block; border-color: #e68a00; background: rgba(230,138,0,.12); }
+.aib-badge { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; line-height: 16px; margin: 1px 3px 1px 0; background: rgba(128,128,128,.25); white-space: nowrap; }
+.aib-badge.green { background: rgba(60,158,60,.35); }
+.aib-badge.red { background: rgba(221,51,51,.4); }
+.aib-badge.orange { background: rgba(230,138,0,.4); }
+.aib-chip { display: inline-block; padding: 1px 4px 1px 8px; border-radius: 9px; margin: 2px 4px 2px 0; background: rgba(128,128,128,.22); font-size: 12px; }
+.aib-chip a { cursor: pointer; margin-left: 4px; padding: 0 4px; text-decoration: none; }
+.aib-table { width: 100%; }
+.aib-table td, .aib-table th { vertical-align: middle; }
+.aib-table td.aib-name { white-space: nowrap; }
+.aib-table img.aib-icon { width: 30px; height: 30px; vertical-align: middle; margin-right: 8px; border-radius: 4px; }
+.aib-table .aib-icon-ph { display: inline-block; width: 30px; height: 30px; margin-right: 8px; vertical-align: middle; text-align: center; line-height: 30px; font-size: 18px; opacity: .6; }
+.aib-table input.aib-small { width: 90px; }
+.aib-table input.aib-num { width: 60px; }
+.aib-table tr.aib-off td:not(.aib-keep) { opacity: .5; }
+.aib-table tr.aib-detail > td { background: rgba(128,128,128,.08); padding: 10px 14px; }
+.aib-paths { font-size: 11px; opacity: .75; line-height: 15px; }
+.aib-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; background: #888; }
+.aib-dot.on { background: #3c9e3c; }
+.aib-progress { width: 100%; max-width: 900px; height: 18px; border-radius: 4px; background: rgba(128,128,128,.25); overflow: hidden; margin: 6px 0; }
+.aib-progress > div { height: 100%; width: 0; background: #e68a00; transition: width .6s; }
+.aib-browser { border: 1px solid rgba(128,128,128,.35); border-radius: 4px; max-height: 260px; overflow: auto; padding: 4px 8px; margin: 6px 0; max-width: 700px; }
+.aib-browser div { padding: 2px 0; }
+.aib-browser a { cursor: pointer; }
+.aib-tree { border: 1px solid rgba(128,128,128,.35); border-radius: 4px; max-height: 460px; overflow: auto; padding: 6px 10px; max-width: 1000px; }
+.aib-tree ul { list-style: none; margin: 0; padding-left: 20px; }
+.aib-tree > ul { padding-left: 0; }
+.aib-tree li { margin: 1px 0; white-space: nowrap; }
+.aib-tree .aib-tg { cursor: pointer; display: inline-block; width: 16px; text-align: center; }
+.aib-tree .aib-size { opacity: .6; font-size: 11px; margin-left: 8px; }
+.aib-once { border: 2px solid #e68a00; border-radius: 6px; padding: 12px 14px; margin: 10px 0; max-width: 900px; background: rgba(230,138,0,.08); }
+.aib-once .aib-secret { font-family: "DejaVu Sans Mono", Menlo, Consolas, monospace; font-size: 16px; letter-spacing: .5px; padding: 6px 10px; margin: 8px 0; display: inline-block; border: 1px dashed rgba(128,128,128,.6); user-select: all; }
+.aib-steps { margin: 6px 0 0 0; padding-left: 0; list-style: none; }
+.aib-steps li { margin: 3px 0; }
+.aib-steps li i { width: 18px; }
+.aib-hidden { display: none !important; }
+dl.aib-dl dt { white-space: nowrap; }

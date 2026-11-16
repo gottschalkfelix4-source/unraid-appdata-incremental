@@ -1,0 +1,20 @@
+Menu="AppdataIncremental:5"
+Title="Verlauf"
+Tag="history"
+Markdown="false"
+---
+<?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
+<div id="aib-history" class="aib-wrap">
+  <div class="aib-row">
+    <select id="aib-h-ct"><option value="">alle Container</option></select>
+    <input type="button" id="aib-h-refresh" value="Aktualisieren">
+    <span class="aib-muted" id="aib-h-count"></span>
+  </div>
+  <blockquote class="inline_help"><p>Jede Version ist eine vollständige Sicherung des Containers. <b>Neu hochgeladen</b> zeigt, wie viele Daten diese Version
+  tatsächlich zusätzlich belegt (Deduplizierung). „Details“ zeigt die geänderten Dateien gegenüber der vorherigen Version.</p></blockquote>
+  <div id="aib-h-msg" class="aib-msg"></div>
+  <table class="tablesorter shift aib-table">
+    <thead><tr><th>Datum</th><th>Container</th><th>Größe</th><th>Neu hochgeladen</th><th>Neue / geänderte Dateien</th><th>Dauer</th><th>ID</th><th></th></tr></thead>
+    <tbody id="aib-h-body"></tbody>
+  </table>
+</div>

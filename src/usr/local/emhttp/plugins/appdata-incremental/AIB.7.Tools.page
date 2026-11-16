@@ -1,0 +1,36 @@
+Menu="AppdataIncremental:7"
+Title="Logs & Werkzeuge"
+Tag="wrench"
+Markdown="false"
+---
+<?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
+<div id="aib-tools" class="aib-wrap">
+  <div class="title"><span class="left"><i class="fa fa-stethoscope title"></i>Systemcheck &amp; Vorschau</span></div>
+  <div class="aib-row"><input type="button" id="aib-d-run" value="Systemcheck ausführen"></div>
+  <blockquote class="inline_help"><p>Prüft Programme, Konfiguration, Ziel, Schlüssel, Pools und Docker – und zeigt, welche Container mit welchen Pfaden und Ausschlüssen beim nächsten Lauf gesichert würden. Ändert nichts.</p></blockquote>
+  <div id="aib-d-out"></div>
+
+  <div class="title"><span class="left"><i class="fa fa-camera title"></i>Snapshot-Selbsttest</span></div>
+  <dl><dt>Ordner:</dt><dd><select id="aib-st-path" style="max-width:600px"></select> <input type="button" id="aib-st-run" value="Testen"></dd></dl>
+  <blockquote class="inline_help"><p>Erstellt für den gewählten Ordner kurz einen btrfs/ZFS-Snapshot, prüft, ob er eingefroren lesbar ist, und löscht ihn sofort wieder.
+  Es wird kein Container gestoppt. Sinnvoll vor dem ersten echten Backup.</p></blockquote>
+  <div id="aib-st-out" class="aib-log" style="min-height:20px"></div>
+
+  <div class="title"><span class="left"><i class="fa fa-medkit title"></i>Repository-Wartung</span></div>
+  <div class="aib-row">
+    <input type="button" class="aib-maint" data-kind="forget" value="Aufbewahrung anwenden">
+    <input type="button" class="aib-maint" data-kind="prune" value="Aufräumen (prune)">
+    <input type="button" class="aib-maint" data-kind="check" value="Integrität prüfen">
+    <input type="button" class="aib-maint" data-kind="unlock" value="Sperren lösen">
+  </div>
+  <blockquote class="inline_help"><p>Diese Schritte laufen sonst automatisch nach dem Zeitplan. Manuell nur bei Bedarf, z. B. nach geänderten Aufbewahrungsregeln
+  oder wenn ein abgebrochener Lauf eine Sperre hinterlassen hat.</p></blockquote>
+  <div id="aib-m-msg" class="aib-msg"></div>
+
+  <div class="title"><span class="left"><i class="fa fa-file-text-o title"></i>Log-Historie</span></div>
+  <div class="aib-row"><input type="button" id="aib-l-refresh" value="Aktualisieren"></div>
+  <div id="aib-l-msg" class="aib-msg"></div>
+  <table class="tablesorter shift aib-table"><thead><tr><th>Zeit</th><th>Art</th><th>Größe</th><th></th></tr></thead><tbody id="aib-l-body"></tbody></table>
+  <div class="aib-row"><b id="aib-l-name"></b> <input type="button" id="aib-l-dl" value="Herunterladen" style="display:none"></div>
+  <div id="aib-l-view" class="aib-log" style="display:none"></div>
+</div>

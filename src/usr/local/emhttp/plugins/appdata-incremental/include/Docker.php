@@ -34,6 +34,8 @@ final class Docker
                 'status' => (string)($ct['State']['Status'] ?? ''),
                 'image' => (string)($ct['Config']['Image'] ?? ''),
                 'restart' => (string)($ct['HostConfig']['RestartPolicy']['Name'] ?? ''),
+                'icon_label' => (string)($ct['Config']['Labels']['net.unraid.docker.icon'] ?? ''),
+                'webui' => (string)($ct['Config']['Labels']['net.unraid.docker.webui'] ?? ''),
                 'mounts' => $mounts,
             ];
         }

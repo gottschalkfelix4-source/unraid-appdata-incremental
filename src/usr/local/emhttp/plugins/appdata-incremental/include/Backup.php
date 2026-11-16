@@ -145,14 +145,22 @@ final class Backup
         if ($this->dry) $sub[] = '--dry-run';
         $sub = array_merge($sub, $m['paths'], [$meta]);
         $mb = self::bindsFor($m['paths'], $binds);
-        $summary = null; $lastLog = 0.0;
+        $summary = null; $lastLog = microtime(true);
         $onOut = function (string $line) use (&$summary, &$lastLog, $name) {
             $j = json_decode($line, true);
             if (!is_array($j)) { if (trim($line) !== '') Log::info("restic: $line"); return; }
             $t = $j['message_type'] ?? '';
             if ($t === 'summary') $summary = $j;
             elseif ($t === 'error') Log::warn("$name: " . ($j['error']['message'] ?? $line) . (isset($j['item']) ? " ({$j['item']})" : ''));
-            elseif ($t === 'status' && microtime(true) - $lastLog > 60) {
+            elseif ($t === 'status') {
+                static $lastState = 0.0;
+                if (microtime(true) - $lastState > 3) {
+                    $lastState = microtime(true);
+                    State::update(['progress' => ['container' => $name, 'percent' => round(100 * ($j['percent_done'] ?? 0), 1),
+                        'bytes_done' => $j['bytes_done'] ?? 0, 'total_bytes' => $j['total_bytes'] ?? 0,
+                        'files_done' => $j['files_done'] ?? 0, 'total_files' => $j['total_files'] ?? 0]]);
+                }
+                if (microtime(true) - $lastLog < 60) return;
                 $lastLog = microtime(true);
                 Log::info(sprintf('%s: %.1f%% (%s von %s)', $name, 100 * ($j['percent_done'] ?? 0), Fs::human((float)($j['bytes_done'] ?? 0)), Fs::human((float)($j['total_bytes'] ?? 0))));
             }
