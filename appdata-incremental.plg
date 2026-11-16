@@ -3,8 +3,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "appdata-incremental">
 <!ENTITY author    "gottschalkfelix4-source">
-<!ENTITY version   "2026.11.16b">
-<!ENTITY gitRef    "059ef14312042085cd2856c182023d71a8deab9a">
+<!ENTITY version   "2026.11.16c">
+<!ENTITY gitRef    "5bc2c0495c1fa267cd991b0fe3c01b99a495195c">
 <!ENTITY repoURL   "https://github.com/gottschalkfelix4-source/unraid-appdata-incremental">
 <!ENTITY rawURL    "https://raw.githubusercontent.com/gottschalkfelix4-source/unraid-appdata-incremental">
 <!ENTITY pluginURL "&rawURL;/main/&name;.plg">
@@ -15,6 +15,12 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" pluginURL="&pluginURL;" support="&repoURL;/issues" min="7.0.0" icon="archive">
 
 <CHANGES>
+###2026.11.16c
+- Status-Seite neu: Kacheln für Zustand, letztes Backup, nächstes Backup und Speicher (belegt im Backup-Speicher, Versionen, freier Platz am Ziel mit Balken)
+- Laufender Vorgang mit „Container x von y“, Gesamtfortschritt, Laufzeit und Abbrechen
+- Liste der letzten Läufe mit Ergebnis, Container-Details und Log je Lauf (optional auch Wiederherstellungen und Wartung)
+- Speicherstatistik wird nach jedem Backup aktualisiert; freier Platz per SFTP „df“ bzw. lokal
+
 ###2026.11.16b
 - Fix: In Unraid kam bei jeder Aktion „Ungültiges CSRF-Token“ (Unraid prüft das Token selbst und entfernt es danach – das Plugin prüft jetzt nur noch, wenn diese Prüfung fehlt)
 - Neu: Einrichtungs-Assistent als erster Tab „Einrichtung“ – Schritt für Schritt: Ziel (Storage Box, SFTP oder Ordner), Anmeldung mit Schlüssel, Backup-Passwort, Verbindung, Container, Zeitplan, Fertig
@@ -43,7 +49,7 @@
 <FILE Name="&plgPATH;/manifest-&version;.sha256">
 <INLINE>
 14f4a65586e5ab5a998ecf270511cafba35d695a96c1f9066972c8d308c1d583  usr/local/emhttp/plugins/appdata-incremental/AIB.1.Setup.page
-2b3116e64d6af3b1b7fade1620338a054d40d5bca601ec70b619297f092ca9de  usr/local/emhttp/plugins/appdata-incremental/AIB.2.Status.page
+664487c2769e75ea8f47d847578b9e868c724b565d4b331560112c787b2e6cd1  usr/local/emhttp/plugins/appdata-incremental/AIB.2.Status.page
 34ae6cfcd52cd816d13645d8afd80b1a02f6d295623e8b1ba84e022739aa6f86  usr/local/emhttp/plugins/appdata-incremental/AIB.3.Containers.page
 107f5b3cbdfe0570b0cba213740d6b982f435711155d06c5262cd132380e65b4  usr/local/emhttp/plugins/appdata-incremental/AIB.4.Target.page
 0f0ba370474ecceb1634b80eb670cc07f737426f8c4d619ddad01cfade95d7cc  usr/local/emhttp/plugins/appdata-incremental/AIB.5.Schedule.page
@@ -51,10 +57,10 @@ fcd8585e500ea799735b1cdd55f6a046c4409208ea6f4f4993bac6db72b7add5  usr/local/emht
 6308fead6ebd83a17ec8df92fde67f2a5e066875f162672192299477f96b70e2  usr/local/emhttp/plugins/appdata-incremental/AIB.7.Restore.page
 bd168b7c5c12c7ead07e4ff00afaac590139a7fefdd3b19ac71388965456e228  usr/local/emhttp/plugins/appdata-incremental/AIB.8.Tools.page
 1d5f6cd732b0f753627ead37f7e4024ae68f13327b3484333bff5ca9b742fb29  usr/local/emhttp/plugins/appdata-incremental/AppdataIncremental.page
-3e6ef65ab9ecb7eddc9aa41d811c8055b6c9ada27ef84097555033128fc7fde5  usr/local/emhttp/plugins/appdata-incremental/css/aib.css
-e7d4beb083b7796fdb02f68dc954819198e43de626c16a93feec71693d4efe77  usr/local/emhttp/plugins/appdata-incremental/include/Admin.php
-3e4a8a6471ae7450a73e4ecdf66dbbc9ee3d4ec279bb240bf234e889e03277a4  usr/local/emhttp/plugins/appdata-incremental/include/Api.php
-84e8b65c6be8d42eb0d52316cd6e384897054a11f4307c567e257786bd7c01a4  usr/local/emhttp/plugins/appdata-incremental/include/Backup.php
+4fbbe7db655309aa3340b8048984ebebd6ca1ebb9d18bb00d531cf507130d286  usr/local/emhttp/plugins/appdata-incremental/css/aib.css
+3d7b8a624de7c060ec8f20ddadb98eb64432536cac5467ce9007cf88b2f11f12  usr/local/emhttp/plugins/appdata-incremental/include/Admin.php
+c01b96c5d640f934f79093685af6d81d3614fd254600a3b7b68eafad18331c4c  usr/local/emhttp/plugins/appdata-incremental/include/Api.php
+fe804e78c2472472abe27fb8a0f713e3b6d0faed5b7d35dcfc6fb98edcdf5a44  usr/local/emhttp/plugins/appdata-incremental/include/Backup.php
 3ffb15e4064a35861adbf6433d3da767c6251cf59f361368c6b175b90f91dfb6  usr/local/emhttp/plugins/appdata-incremental/include/Config.php
 6872bf26a13cff83f529bafd70e91ddcc7a9c1fe4d0f428ed3a0b9d9f5356843  usr/local/emhttp/plugins/appdata-incremental/include/Docker.php
 076e8dd8f22cc515395589023966ff658a6feb9d41a27c7d8ecb5a7c9698aa5c  usr/local/emhttp/plugins/appdata-incremental/include/Restic.php
@@ -63,8 +69,8 @@ a83f5985cb67005702eef5c750e68ec08ba1acde66dcfa79e7397e105de958c4  usr/local/emht
 5506ae5722a80e33ca8d2695e939790981dcf39026a1b0b70f1775aaa5fea3ab  usr/local/emhttp/plugins/appdata-incremental/include/Util.php
 661bdbf317b81fdc46632ef7f405da4d57074dcc08d091551033dc7e956d9763  usr/local/emhttp/plugins/appdata-incremental/include/api.php
 4c5877d07aadf6a797cef96278901387789a784d600d3b75067a5c3c5b580c7c  usr/local/emhttp/plugins/appdata-incremental/include/assets.php
-7f5c27f1721bba7699ff40181393366a853284fa1d945988994d9c018e6ae276  usr/local/emhttp/plugins/appdata-incremental/js/aib.js
-c21ff8ed8b39b1c18b57158d1d48f08feefeab9410bff9aa3635348c9b49d8a1  usr/local/emhttp/plugins/appdata-incremental/scripts/aib
+07e9f2803777c21645aedc8a851693b9bd124c3849b16f0aaac97e534d91f7ad  usr/local/emhttp/plugins/appdata-incremental/js/aib.js
+e0b4e37d6b7391d842f4e33a7cdd70b83d014a201ad798a0c52aa2ac2af30b8a  usr/local/emhttp/plugins/appdata-incremental/scripts/aib
 </INLINE>
 </FILE>
 
