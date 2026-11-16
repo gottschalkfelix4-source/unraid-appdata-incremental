@@ -699,5 +699,268 @@
     }
   };
 
-  $(function () { Status.init(); Cts.init(); Tgt.init(); Sch.init(); Hist.init(); Res.init(); Tools.init(); });
+  // ------------------------------------------------------------------ setup wizard
+  var Wiz = {
+    s: null, cur: null, type: null, ok: {}, cts: null,
+    labels: { welcome: 'Start', target: 'Ziel', login: 'Anmeldung', password: 'Passwort', repo: 'Verbindung', containers: 'Container', schedule: 'Zeitplan', finish: 'Fertig' },
+    order: function () {
+      var o = ['welcome', 'target'];
+      if (Wiz.type === 'storagebox' || Wiz.type === 'sftp') o.push('login');
+      return o.concat(['password', 'repo', 'containers', 'schedule', 'finish']);
+    },
+    init: function () {
+      if (!$('#aib-wizard').length) return;
+      A.Wizard = Wiz;
+      var h = ''; for (var i = 0; i < 24; i++) h += '<option value="' + i + '">' + (i < 10 ? '0' : '') + i + ':00</option>';
+      $('#aib-wz-hour').html(h);
+      $('#aib-wz-next').on('click', Wiz.next);
+      $('#aib-wz-back').on('click', Wiz.back);
+      $('#aib-wz-restart').on('click', function () { Wiz.go('welcome'); });
+      $('.aib-wz-tab').on('click', function () { A.gotoTab($(this).data('tab')); });
+      $('input[name=aib-wz-type]').on('change', function () { Wiz.setType(this.value); });
+      $('#aib-wz-sb-user').on('input', Wiz.sbHost);
+      // login
+      $('#aib-wz-install').on('click', Wiz.install);
+      $('#aib-wz-pw').on('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); Wiz.install(); } });
+      $('#aib-wz-manual').on('click', function (e) { e.preventDefault(); $('#aib-wz-manualbox').toggle(); });
+      $('#aib-wz-pubcopy').on('click', function () { A.copy($('#aib-wz-pub').val(), this); });
+      $('#aib-wz-manualdone').on('click', function () { Wiz.checkLogin(); });
+      // password
+      $('#aib-wz-pwgen').on('click', function () {
+        A.api('password_generate', { force: 0 }).then(function (r) {
+          $('#aib-wz-pwval').text(r.password); $('#aib-wz-pwonce').show(); $('#aib-wz-pw-new').hide(); $('#aib-wz-pwsavedrow').show(); Wiz.msg('');
+          Wiz.load(false).then(Wiz.buttons);
+        }, function (e) { Wiz.msg(e, 'err'); });
+      });
+      $('#aib-wz-pwown').on('click', function (e) { e.preventDefault(); $('#aib-wz-pwownbox').toggle(); });
+      $('#aib-wz-pwset').on('click', function () {
+        var a = $('#aib-wz-pw1').val(), b = $('#aib-wz-pw2').val();
+        if (a !== b) { Wiz.msg('Die beiden Passwörter stimmen nicht überein.', 'err'); return; }
+        A.api('password_set', { password: a, force: 0 }).then(function () {
+          $('#aib-wz-pw1,#aib-wz-pw2').val(''); $('#aib-wz-pw-new').hide(); $('#aib-wz-pwsavedrow').show(); Wiz.msg('Passwort übernommen.', 'ok');
+          Wiz.load(false).then(Wiz.buttons);
+        }, function (e) { Wiz.msg(e, 'err'); });
+      });
+      $('#aib-wz-pwcopy').on('click', function () { A.copy($('#aib-wz-pwval').text(), this); });
+      $('#aib-wz-pwdl').on('click', function () {
+        A.download('appdata-incremental-backup-passwort.txt', 'Appdata Incremental – Backup-Passwort\n\n' + $('#aib-wz-pwval').text() +
+          '\n\nZiel: ' + (Wiz.s ? Wiz.s.repository_effective : '') + '\nIm Passwortmanager speichern und diese Datei danach löschen.\nOhne dieses Passwort sind die Backups nicht lesbar.\n');
+      });
+      $('#aib-wz-pwsaved').on('change', Wiz.buttons);
+      // repo
+      $('#aib-wz-retest').on('click', Wiz.checkRepo);
+      $('#aib-wz-init').on('click', function () {
+        A.busy(this, true); $('#aib-wz-repo-state').html('<i class="fa fa-spinner fa-spin"></i> Lege Backup-Speicher an …');
+        A.api('init_repo').then(function () { Wiz.checkRepo(); }, function (e) { $('#aib-wz-repo-state').text(''); Wiz.msg(e, 'err'); })
+          .always(function () { A.busy('#aib-wz-init', false); });
+      });
+      // containers
+      $('#aib-wz-ctall').on('click', function (e) { e.preventDefault(); $('#aib-wz-cts input').prop('checked', true).trigger('change'); });
+      $('#aib-wz-ctnone').on('click', function (e) { e.preventDefault(); $('#aib-wz-cts input').prop('checked', false).trigger('change'); });
+      $('#aib-wz-cts').on('change', 'input', function () { $(this).closest('label').toggleClass('off', !this.checked); });
+      $('#aib-wz-import').on('click', function (e) { e.preventDefault(); $('#aib-wz-importbox').toggle(); });
+      $('#aib-wz-importgo').on('click', function () {
+        var f = $('#aib-wz-importfile')[0].files[0]; if (!f) { Wiz.msg('Erst eine Datei auswählen.', 'err'); return; }
+        var r = new FileReader();
+        r.onload = function () {
+          A.api('import_config', { json: r.result }).then(function (d) {
+            Wiz.msg('Vorlage übernommen (' + d.imported.join(', ') + ').', 'ok'); $('#aib-wz-importbox').hide(); A.containers = null; Wiz.loadCts();
+          }, function (e) { Wiz.msg(e, 'err'); });
+        };
+        r.readAsText(f);
+      });
+      $('#aib-wz-freq').on('change', function () { $('#aib-wz-timebox').toggle(this.value !== 'off'); });
+      // finish
+      $('#aib-wz-selftest').on('click', Wiz.selftest);
+      $('#aib-wz-first').on('click', function () {
+        A.api('run', { kind: 'backup', containers: [] }).then(function () { A.gotoTab('Status'); if (A.Status) A.Status.poll(); }, function (e) { Wiz.msg(e, 'err'); });
+      });
+      Wiz.load(true);
+    },
+    load: function (first) {
+      return A.api('settings').then(function (s) {
+        Wiz.s = s;
+        if (first) {
+          var t = s.target || {};
+          if (t.type === 'sftp' && /\.your-storagebox\.de$/.test(t.host || '') && +t.port === 23) { Wiz.setType('storagebox'); $('#aib-wz-sb-user').val(t.user); Wiz.sbHost(); }
+          else if (t.type === 'sftp') { Wiz.setType('sftp'); $('#aib-wz-host').val(t.host); $('#aib-wz-user').val(t.user); $('#aib-wz-port').val(t.port); }
+          else if (t.type === 'local') { Wiz.setType('local'); $('#aib-wz-local').val(t.local_path); }
+          var sc = s.schedule || {};
+          // new setup: recommend a daily backup; afterwards show what is configured
+          $('#aib-wz-freq').val(!s.setup_completed ? 'daily' : (!sc.enabled ? 'off' : (sc.frequency === 'weekly' ? 'weekly' : 'daily'))).trigger('change');
+          $('#aib-wz-hour').val(sc.hour === undefined ? 2 : sc.hour);
+          var r = s.retention || {};
+          $('#aib-wz-keep').val(r.keep_daily >= 14 ? 'more' : (r.keep_daily && r.keep_daily <= 3 ? 'less' : 'std'));
+          $('#aib-wz-notify').val(s.notify && s.notify.on_error === false ? '0' : '1');
+          Wiz.go(s.setup_completed ? 'done' : 'welcome');
+        }
+        return s;
+      }, function (e) { Wiz.msg(e, 'err'); });
+    },
+    setType: function (t) {
+      Wiz.type = t;
+      $('input[name=aib-wz-type][value=' + t + ']').prop('checked', true);
+      $('.aib-card').removeClass('sel'); $('input[name=aib-wz-type]:checked').closest('.aib-card').addClass('sel');
+      $('.aib-wz-sub').removeClass('show').filter('[data-for=' + t + ']').addClass('show');
+      Wiz.nav();
+    },
+    sbHost: function () {
+      var u = $.trim($('#aib-wz-sb-user').val()), m = /^(u\d+)(-sub\d+)?$/.exec(u);
+      $('#aib-wz-sb-host').text(m ? m[1] + '.your-storagebox.de (Port 23)' : '–');
+    },
+    msg: function (t, k) { A.msg('#aib-wz-msg', t, k); },
+    nav: function () {
+      var o = Wiz.order(), i = o.indexOf(Wiz.cur);
+      $('#aib-wz-nav').html(Wiz.cur === 'done' ? '' : $.map(o, function (s, j) {
+        return '<li class="' + (j < i ? 'done' : (j === i ? 'cur' : '')) + '">' + A.esc(Wiz.labels[s]) + '</li>';
+      }).join(''));
+    },
+    go: function (step) {
+      Wiz.cur = step; Wiz.msg('');
+      $('.aib-wz-step').removeClass('cur').filter('[data-step=' + step + ']').addClass('cur');
+      Wiz.nav(); Wiz.buttons();
+      var enter = { login: Wiz.enterLogin, password: Wiz.enterPassword, repo: Wiz.checkRepo, containers: Wiz.loadCts, finish: Wiz.enterFinish, done: Wiz.enterDone }[step];
+      if (enter) enter();
+      window.scrollTo(0, 0);
+    },
+    buttons: function () {
+      var c = Wiz.cur, o = Wiz.order(), i = o.indexOf(c);
+      $('#aib-wz-back').css('visibility', i > 0 ? 'visible' : 'hidden');
+      $('#aib-wz-next').toggle(c !== 'finish' && c !== 'done');
+      $('.aib-wz-buttons').toggle(c !== 'done');
+      var can = true;
+      if (c === 'login') can = !!Wiz.ok.login;
+      if (c === 'password') can = Wiz.s && Wiz.s.password.set && ($('#aib-wz-pw-exists').is(':visible') || $('#aib-wz-pwsaved').prop('checked'));
+      if (c === 'repo') can = !!Wiz.ok.repo;
+      $('#aib-wz-next').prop('disabled', !can).val(c === 'welcome' ? "Los geht's ›" : (c === 'schedule' ? 'Speichern ›' : 'Weiter ›'));
+    },
+    back: function () { var o = Wiz.order(), i = o.indexOf(Wiz.cur); if (i > 0) Wiz.go(o[i - 1]); },
+    next: function () {
+      var c = Wiz.cur, o = Wiz.order(), go = function () { Wiz.go(Wiz.order()[Wiz.order().indexOf(c) + 1]); };
+      if (c === 'target') return Wiz.saveTarget().then(go);
+      if (c === 'containers') return Wiz.saveCts().then(go);
+      if (c === 'schedule') return Wiz.saveSchedule().then(go);
+      go();
+    },
+    saveTarget: function () {
+      var t;
+      if (!Wiz.type) { Wiz.msg('Bitte ein Ziel auswählen.', 'err'); return $.Deferred().reject(); }
+      if (Wiz.type === 'storagebox') {
+        var u = $.trim($('#aib-wz-sb-user').val()), m = /^(u\d+)(-sub\d+)?$/.exec(u);
+        if (!m) { Wiz.msg('Der Benutzername sieht so aus: u123456 oder u123456-sub1.', 'err'); return $.Deferred().reject(); }
+        t = { type: 'sftp', host: m[1] + '.your-storagebox.de', user: u, port: 23, path: 'restic-appdata' };
+      } else if (Wiz.type === 'sftp') {
+        t = { type: 'sftp', host: $.trim($('#aib-wz-host').val()), user: $.trim($('#aib-wz-user').val()), port: $('#aib-wz-port').val(), path: 'restic-appdata' };
+      } else {
+        t = { type: 'local', local_path: $.trim($('#aib-wz-local').val()) };
+      }
+      var prev = JSON.stringify(Wiz.s && Wiz.s.target ? [Wiz.s.target.type, Wiz.s.target.host, Wiz.s.target.user, Wiz.s.target.local_path] : []);
+      return A.api('save_target', { target: t }).then(function () {
+        if (prev !== JSON.stringify([t.type, t.host, t.user, t.local_path])) { Wiz.ok.login = false; Wiz.ok.repo = false; }
+        return Wiz.load(false);
+      }, function (e) { Wiz.msg(e, 'err'); return $.Deferred().reject(); });
+    },
+    enterLogin: function () {
+      var show = function (k) {
+        $('#aib-wz-pub').val(k.public || '');
+        $('#aib-wz-key-state').text(k.exists ? 'Schlüssel für das Plugin ist vorhanden.' : '');
+        if (!Wiz.ok.login) Wiz.checkLogin(true);
+      };
+      if (Wiz.s.key.exists) show(Wiz.s.key);
+      else A.api('key_generate', { force: 0 }).then(function (k) { Wiz.s.key = k; show(k); }, function (e) { Wiz.msg(e, 'err'); });
+    },
+    install: function () {
+      var pw = $('#aib-wz-pw').val();
+      if (!pw) { Wiz.msg('Bitte das Passwort des Backup-Servers eingeben.', 'err'); return; }
+      A.busy('#aib-wz-install', true); Wiz.msg('Verbinde und hinterlege den Schlüssel …', 'info');
+      A.api('key_install', { password: pw, mode: Wiz.type === 'storagebox' ? 'storagebox' : 'standard' })
+        .then(function () { Wiz.checkLogin(); }, function (e) { Wiz.msg(e, 'err'); })
+        .always(function () { $('#aib-wz-pw').val(''); A.busy('#aib-wz-install', false); });
+    },
+    checkLogin: function (silent) {
+      if (!silent) Wiz.msg('Prüfe Anmeldung mit Schlüssel …', 'info');
+      return A.api('test_login').then(function (r) {
+        Wiz.ok.login = r.ok;
+        if (r.ok) Wiz.msg('✓ ' + r.message + ' Weiter mit „Weiter“.', 'ok'); else if (!silent) Wiz.msg(r.message, 'err');
+        Wiz.buttons();
+      }, function (e) { if (!silent) Wiz.msg(e, 'err'); });
+    },
+    enterPassword: function () {
+      if ($('#aib-wz-pwonce').is(':visible') || $('#aib-wz-pwsavedrow').is(':visible')) { Wiz.buttons(); return; }
+      var set = Wiz.s.password.set;
+      $('#aib-wz-pw-exists').toggle(set); $('#aib-wz-pw-new').toggle(!set);
+      $('#aib-wz-pwsaved').prop('checked', false);
+      Wiz.buttons();
+    },
+    checkRepo: function () {
+      Wiz.ok.repo = false; Wiz.buttons(); $('#aib-wz-init').hide();
+      $('#aib-wz-repo-state').html('<i class="fa fa-spinner fa-spin"></i> Prüfe Verbindung …');
+      A.api('test_connection').then(function (r) {
+        if (r.ok && r.initialized) { Wiz.ok.repo = true; $('#aib-wz-repo-state').html('<i class="fa fa-check aib-ok"></i> Verbindung steht. ' + (r.message.indexOf('vorhanden') >= 0 ? 'Der Backup-Speicher ist bereit.' : '')); }
+        else if (r.ok) { $('#aib-wz-repo-state').html('<i class="fa fa-check aib-ok"></i> Verbindung steht. Am Ziel gibt es noch keinen Backup-Speicher – jetzt anlegen:'); $('#aib-wz-init').show(); }
+        else $('#aib-wz-repo-state').html('<i class="fa fa-times" style="color:#d33"></i> ' + A.esc(r.message));
+        Wiz.buttons();
+      }, function (e) { $('#aib-wz-repo-state').html('<i class="fa fa-times" style="color:#d33"></i> ' + A.esc(e)); });
+    },
+    loadCts: function () {
+      $('#aib-wz-cts').html('<i class="fa fa-spinner fa-spin"></i>');
+      A.loadContainers(true).then(function (d) {
+        Wiz.cts = d.containers;
+        $('#aib-wz-cts').html($.map(d.containers, function (c, i) {
+          var icon = c.icon ? '<img src="' + A.esc(c.icon) + '" onerror="this.outerHTML=\'<span class=&quot;aib-icon-ph fa fa-cube&quot;></span>\'">' : '<span class="aib-icon-ph fa fa-cube"></span>';
+          var why = !c.paths.length ? 'keine Appdata – nur Einstellungen' : (c.note || (c.excludes.length ? 'ohne: ' + c.excludes.join(', ') : ''));
+          return '<label class="' + (c.enabled ? '' : 'off') + '"><input type="checkbox" data-i="' + i + '"' + (c.enabled ? ' checked' : '') + '>' + icon +
+            '<span><b>' + A.esc(c.name) + '</b>' + (why ? '<small>' + A.esc(why) + '</small>' : '') + '</span></label>';
+        }).join('') || '<p>Keine Container gefunden.</p>');
+      }, function (e) { $('#aib-wz-cts').html(''); Wiz.msg(e, 'err'); });
+    },
+    saveCts: function () {
+      if (!Wiz.cts) return $.Deferred().resolve();
+      var out = {};
+      $('#aib-wz-cts input').each(function () {
+        var c = Wiz.cts[$(this).data('i')];
+        out[c.name] = { enabled: this.checked, stop: c.stop, group: c.group, order: c.order, excludes: c.excludes, extra_paths: c.extra_paths, note: c.note };
+      });
+      return A.api('save_containers', { containers: out }).then(function () {
+        A.containers = null;
+        $.each(Wiz.cts, function (_, c) { c.enabled = out[c.name].enabled; c.source = 'config'; });
+      }, function (e) { Wiz.msg(e, 'err'); return $.Deferred().reject(); });
+    },
+    saveSchedule: function () {
+      var f = $('#aib-wz-freq').val(), keep = { std: [7, 4, 6], more: [14, 8, 12], less: [3, 2, 3] }[$('#aib-wz-keep').val()], n = $('#aib-wz-notify').val() === '1';
+      return A.api('save_settings', { settings: {
+        schedule: { enabled: f !== 'off', frequency: f === 'weekly' ? 'weekly' : 'daily', hour: $('#aib-wz-hour').val(), minute: 0, weekday: 0 },
+        retention: { keep_daily: keep[0], keep_weekly: keep[1], keep_monthly: keep[2], keep_yearly: 0, keep_last: 0, keep_within: '' },
+        notify: { on_error: n, on_warning: n, on_success: false }, setup_completed: true } })
+        .then(function () { return Wiz.load(false); }, function (e) { Wiz.msg(e, 'err'); return $.Deferred().reject(); });
+    },
+    summary: function () {
+      var s = Wiz.s, sc = s.schedule, r = s.retention, n = 0, all = 0;
+      $.each(Wiz.cts || [], function (_, c) { all++; if (c.enabled) n++; });
+      return [
+        ['Ziel', s.repository_effective],
+        ['Container', Wiz.cts ? n + ' von ' + all + ' werden gesichert' : 'siehe Tab „Container“'],
+        ['Zeitplan', s.schedule_active ? (sc.frequency === 'weekly' ? 'wöchentlich sonntags' : 'täglich') + ' um ' + (sc.hour < 10 ? '0' : '') + sc.hour + ':00 Uhr' : 'nur manuell'],
+        ['Aufbewahrung', r.keep_daily + ' Tage, ' + r.keep_weekly + ' Wochen, ' + r.keep_monthly + ' Monate']
+      ];
+    },
+    enterFinish: function () {
+      $('#aib-wz-summary').html($.map(Wiz.summary(), function (x) { return '<li><i class="fa fa-check aib-ok"></i> <b>' + A.esc(x[0]) + ':</b> ' + A.esc(x[1]) + '</li>'; }).join(''));
+      if (A.Status) A.Status.poll();
+    },
+    enterDone: function () {
+      var go = function () { $('#aib-wz-done-summary').html($.map(Wiz.summary(), function (x) { return '<b>' + A.esc(x[0]) + ':</b> ' + A.esc(x[1]); }).join('<br>')); };
+      A.loadContainers(false).then(function (d) { Wiz.cts = d.containers; go(); }, go);
+    },
+    selftest: function () {
+      var path = null;
+      $.each(Wiz.cts || [], function (_, c) { if (!path && c.enabled && c.paths.length) path = c.paths[0]; });
+      if (!path) { Wiz.msg('Kein ausgewählter Container mit Appdata gefunden.', 'err'); return; }
+      A.busy('#aib-wz-selftest', true); $('#aib-wz-selftest-out').show().text('Teste Snapshot für ' + path + ' …');
+      A.api('selftest', { path: path }).then(function (r) { $('#aib-wz-selftest-out').text((r.ok ? '✓ Snapshot funktioniert.\n\n' : '✗ Snapshot nicht möglich – die Sicherung läuft dann im gestoppten Zustand (längere Ausfallzeit).\n\n') + r.log.join('\n')); },
+        function (e) { $('#aib-wz-selftest-out').text(e); }).always(function () { A.busy('#aib-wz-selftest', false); });
+    }
+  };
+
+  $(function () { Wiz.init(); Status.init(); Cts.init(); Tgt.init(); Sch.init(); Hist.init(); Res.init(); Tools.init(); });
 })(jQuery);

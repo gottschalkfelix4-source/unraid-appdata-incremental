@@ -1,0 +1,148 @@
+Menu="AppdataIncremental:1"
+Title="Einrichtung"
+Tag="magic"
+Markdown="false"
+---
+<?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
+<div id="aib-wizard" class="aib-wrap aib-wiz">
+  <ol class="aib-wiz-nav" id="aib-wz-nav"></ol>
+
+  <!-- 0: done / overview -->
+  <section class="aib-wz-step" data-step="done">
+    <h2><i class="fa fa-check-circle aib-ok"></i> Alles eingerichtet</h2>
+    <p id="aib-wz-done-summary"></p>
+    <div class="aib-row">
+      <input type="button" class="aib-wz-tab" data-tab="Status" value="Zum Status">
+      <input type="button" id="aib-wz-restart" value="Einrichtung erneut durchlaufen">
+    </div>
+  </section>
+
+  <!-- 1: welcome -->
+  <section class="aib-wz-step" data-step="welcome">
+    <h2>Willkommen</h2>
+    <p>Dieser Assistent richtet die Sicherung deiner Docker-Container in wenigen Schritten ein. Du brauchst:</p>
+    <ul>
+      <li>ein <b>Backup-Ziel</b> – z. B. eine Hetzner Storage Box (mit aktiviertem SSH) oder einen Ordner auf diesem Server,</li>
+      <li>bei der Storage Box einmalig ihr <b>Passwort</b> (wird nicht gespeichert),</li>
+      <li>einen <b>Passwortmanager</b>, um das Backup-Passwort aufzubewahren.</li>
+    </ul>
+    <p class="aib-muted">Alles lässt sich später in den anderen Tabs ändern. Nichts wird gesichert oder gestoppt, bevor du es am Ende startest.</p>
+  </section>
+
+  <!-- 2: target -->
+  <section class="aib-wz-step" data-step="target">
+    <h2>Wohin sollen die Backups?</h2>
+    <div class="aib-cards">
+      <label class="aib-card"><input type="radio" name="aib-wz-type" value="storagebox"><b>Hetzner Storage Box</b><span>Empfohlen. Sicherung außer Haus über SSH.</span></label>
+      <label class="aib-card"><input type="radio" name="aib-wz-type" value="sftp"><b>Anderer SSH/SFTP-Server</b><span>z. B. ein zweiter Server oder ein NAS mit SSH.</span></label>
+      <label class="aib-card"><input type="radio" name="aib-wz-type" value="local"><b>Ordner auf diesem Server</b><span>Andere Disk, Pool oder eingebundene Freigabe.</span></label>
+    </div>
+    <div class="aib-wz-sub" data-for="storagebox">
+      <dl><dt>Benutzername der Storage Box:</dt><dd><input type="text" id="aib-wz-sb-user" placeholder="u123456 oder u123456-sub1" style="width:240px"></dd></dl>
+      <p class="aib-hint">Steht in der Hetzner-Konsole bei der Storage Box. Für ein Unterkonto (empfohlen) den Namen mit „-sub…“ verwenden.
+      In den Einstellungen der Storage Box muss <b>„SSH-Support“</b> aktiviert sein.</p>
+      <dl><dt>Server:</dt><dd><span class="aib-mono" id="aib-wz-sb-host">–</span></dd></dl>
+    </div>
+    <div class="aib-wz-sub" data-for="sftp">
+      <dl><dt>Server (Host):</dt><dd><input type="text" id="aib-wz-host" placeholder="backup.example.com" style="width:280px"></dd></dl>
+      <dl><dt>Benutzer:</dt><dd><input type="text" id="aib-wz-user" style="width:200px"></dd></dl>
+      <dl><dt>SSH-Port:</dt><dd><input type="number" id="aib-wz-port" value="22" min="1" max="65535" style="width:90px"></dd></dl>
+    </div>
+    <div class="aib-wz-sub" data-for="local">
+      <dl><dt>Ordner:</dt><dd><input type="text" id="aib-wz-local" placeholder="/mnt/user/backups/appdata-restic" style="width:340px"></dd></dl>
+      <p class="aib-hint">Der Ordner wird angelegt, falls er fehlt. Am besten nicht auf demselben Pool wie appdata.</p>
+    </div>
+  </section>
+
+  <!-- 3: login (sftp only) -->
+  <section class="aib-wz-step" data-step="login">
+    <h2>Anmeldung am Backup-Server</h2>
+    <p>Das Plugin meldet sich künftig mit einem eigenen Schlüssel an – ohne Passwort. Dafür muss der Schlüssel einmal auf dem Server hinterlegt werden.</p>
+    <p id="aib-wz-key-state" class="aib-muted"></p>
+    <dl><dt>Passwort des Backup-Servers:</dt><dd><input type="password" id="aib-wz-pw" autocomplete="new-password" style="width:240px">
+      <input type="button" id="aib-wz-install" value="Schlüssel hinterlegen"></dd></dl>
+    <p class="aib-hint">Das Passwort wird nur für diesen einen Vorgang verwendet – nicht gespeichert und nicht protokolliert.</p>
+    <p><a href="#" id="aib-wz-manual">Ich trage den Schlüssel lieber selbst ein</a></p>
+    <div id="aib-wz-manualbox" style="display:none">
+      <textarea id="aib-wz-pub" class="aib-pub" readonly></textarea><br>
+      <input type="button" id="aib-wz-pubcopy" value="Kopieren">
+      <input type="button" id="aib-wz-manualdone" value="Erledigt – Verbindung prüfen">
+    </div>
+  </section>
+
+  <!-- 4: password -->
+  <section class="aib-wz-step" data-step="password">
+    <h2>Backup-Passwort</h2>
+    <p>Die Backups werden verschlüsselt. <b>Ohne dieses Passwort lassen sie sich nie wieder öffnen</b> – auch nicht, wenn der Server kaputtgeht.
+    Deshalb jetzt erzeugen und sofort im Passwortmanager speichern.</p>
+    <div id="aib-wz-pw-new">
+      <div class="aib-row"><input type="button" id="aib-wz-pwgen" value="Passwort erzeugen"> <a href="#" id="aib-wz-pwown">oder eigenes Passwort eingeben</a></div>
+      <div id="aib-wz-pwownbox" style="display:none">
+        <dl><dt>Passwort (mind. 12 Zeichen):</dt><dd><input type="password" id="aib-wz-pw1" autocomplete="new-password" style="width:260px"></dd></dl>
+        <dl><dt>Wiederholen:</dt><dd><input type="password" id="aib-wz-pw2" autocomplete="new-password" style="width:260px"> <input type="button" id="aib-wz-pwset" value="Übernehmen"></dd></dl>
+      </div>
+    </div>
+    <div id="aib-wz-pwonce" class="aib-once" style="display:none">
+      <b><i class="fa fa-exclamation-triangle"></i> Dein Backup-Passwort – wird nur jetzt angezeigt:</b><br>
+      <span id="aib-wz-pwval" class="aib-secret"></span><br>
+      <input type="button" id="aib-wz-pwcopy" value="Kopieren"> <input type="button" id="aib-wz-pwdl" value="Als Datei herunterladen">
+    </div>
+    <p id="aib-wz-pw-exists" class="aib-msg ok" style="display:none">Es ist bereits ein Backup-Passwort gesetzt.</p>
+    <label id="aib-wz-pwsavedrow" style="display:none"><input type="checkbox" id="aib-wz-pwsaved"> <b>Ich habe das Passwort im Passwortmanager gespeichert.</b></label>
+  </section>
+
+  <!-- 5: repository -->
+  <section class="aib-wz-step" data-step="repo">
+    <h2>Verbindung prüfen</h2>
+    <p id="aib-wz-repo-state"><i class="fa fa-spinner fa-spin"></i> Prüfe Verbindung …</p>
+    <div class="aib-row">
+      <input type="button" id="aib-wz-init" value="Backup-Speicher anlegen" style="display:none">
+      <input type="button" id="aib-wz-retest" value="Erneut prüfen">
+    </div>
+  </section>
+
+  <!-- 6: containers -->
+  <section class="aib-wz-step" data-step="containers">
+    <h2>Welche Container sollen gesichert werden?</h2>
+    <p class="aib-muted">Container werden für die Sicherung nur kurz angehalten (Sekunden). Ausnahmen und Details später im Tab „Container“.</p>
+    <div class="aib-row"><a href="#" id="aib-wz-ctall">alle</a> · <a href="#" id="aib-wz-ctnone">keine</a> · <a href="#" id="aib-wz-import">Vorlage-Datei importieren</a></div>
+    <div id="aib-wz-importbox" style="display:none">
+      <p class="aib-hint">Eine vorbereitete JSON-Vorlage (Regeln, Ausschlüsse) übernehmen. Zugangsdaten werden daraus nie gelesen.</p>
+      <input type="file" id="aib-wz-importfile" accept=".json,application/json"> <input type="button" id="aib-wz-importgo" value="Importieren">
+    </div>
+    <div id="aib-wz-cts" class="aib-wz-cts"></div>
+  </section>
+
+  <!-- 7: schedule -->
+  <section class="aib-wz-step" data-step="schedule">
+    <h2>Wann und wie lange?</h2>
+    <dl><dt>Automatisch sichern:</dt><dd><select id="aib-wz-freq"><option value="daily">täglich</option><option value="weekly">wöchentlich (sonntags)</option><option value="off">nur manuell</option></select>
+      <span id="aib-wz-timebox">um <select id="aib-wz-hour"></select> Uhr</span></dd></dl>
+    <p class="aib-hint">Am besten nachts. Nicht gleichzeitig mit dem Mover oder anderen Backups.</p>
+    <dl><dt>Versionen aufbewahren:</dt><dd><select id="aib-wz-keep">
+      <option value="std">Standard – 7 Tage, 4 Wochen, 6 Monate</option>
+      <option value="more">Mehr – 14 Tage, 8 Wochen, 12 Monate</option>
+      <option value="less">Weniger – 3 Tage, 2 Wochen, 3 Monate</option></select></dd></dl>
+    <p class="aib-hint">Dank Deduplizierung kosten weitere Versionen nur den Platz der Änderungen.</p>
+    <dl><dt>Bei Fehlern benachrichtigen:</dt><dd><select id="aib-wz-notify"><option value="1">Ja</option><option value="0">Nein</option></select></dd></dl>
+  </section>
+
+  <!-- 8: finish -->
+  <section class="aib-wz-step" data-step="finish">
+    <h2><i class="fa fa-flag-checkered"></i> Fertig eingerichtet</h2>
+    <ul id="aib-wz-summary" class="aib-steps"></ul>
+    <p>Empfehlung: zuerst den <b>Snapshot-Test</b> (hält nichts an), dann das <b>erste Backup</b>. Das erste Backup überträgt alles und dauert länger; danach nur noch Änderungen.</p>
+    <div class="aib-row">
+      <input type="button" id="aib-wz-selftest" value="Snapshot-Test">
+      <input type="button" id="aib-wz-first" value="Erstes Backup jetzt starten">
+      <input type="button" class="aib-wz-tab" data-tab="Status" value="Zum Status">
+    </div>
+    <div id="aib-wz-selftest-out" class="aib-log" style="display:none"></div>
+  </section>
+
+  <div id="aib-wz-msg" class="aib-msg"></div>
+  <div class="aib-wz-buttons">
+    <input type="button" id="aib-wz-back" value="‹ Zurück">
+    <input type="button" id="aib-wz-next" value="Weiter ›">
+  </div>
+</div>

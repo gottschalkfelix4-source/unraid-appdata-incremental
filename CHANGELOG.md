@@ -1,3 +1,8 @@
+###2026.11.16b
+- Fix: In Unraid kam bei jeder Aktion „Ungültiges CSRF-Token“ (Unraid prüft das Token selbst und entfernt es danach – das Plugin prüft jetzt nur noch, wenn diese Prüfung fehlt)
+- Neu: Einrichtungs-Assistent als erster Tab „Einrichtung“ – Schritt für Schritt: Ziel (Storage Box, SFTP oder Ordner), Anmeldung mit Schlüssel, Backup-Passwort, Verbindung, Container, Zeitplan, Fertig
+- Storage Box: nur Benutzername eingeben, Server und Port werden automatisch gesetzt; Anmeldung wird nach dem Hinterlegen des Schlüssels geprüft
+
 ###2026.11.16a
 - Neu: WebGUI unter Einstellungen → User Utilities → Appdata Incremental (7 Tabs, Unraid-Stil, Hilfetexte)
 - Einrichtung ohne Terminal: Ziel (SFTP/lokal/benutzerdefiniert), SSH-Schlüssel erzeugen und hinterlegen, Repository-Passwort erzeugen (Einmal-Anzeige, Download), Verbindung testen, Repository initialisieren

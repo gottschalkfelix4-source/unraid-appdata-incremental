@@ -1,7 +1,7 @@
 <?php
-/* WebGUI endpoint of Appdata Incremental.
- * Unraid's local_prepend.php already rejects POST requests without a valid csrf_token;
- * this file checks it again and accepts only POST (except the read-only container icon). */
+/* WebGUI endpoint of Appdata Incremental. Accepts only POST (except the read-only container icon).
+ * CSRF: on Unraid, local_prepend.php (auto_prepend_file) validates csrf_token for every POST, aborts on
+ * failure and then REMOVES the token from $_POST. So we only check ourselves when that prepend did not run. */
 declare(strict_types=1);
 
 namespace Aib;
@@ -32,9 +32,12 @@ function aib_reply(array $d, int $code = 200): void
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') aib_reply(['ok' => false, 'error' => 'Nur POST erlaubt'], 405);
-$var = @parse_ini_file(getenv('AIB_VAR_INI') ?: '/var/local/emhttp/var.ini') ?: [];
-if (!empty($var['csrf_token']) && !hash_equals((string)$var['csrf_token'], (string)($_POST['csrf_token'] ?? ''))) {
-    aib_reply(['ok' => false, 'error' => 'Ungültiges CSRF-Token – Seite neu laden'], 403);
+$unraidChecked = function_exists('csrf_terminate') || str_contains((string)ini_get('auto_prepend_file'), 'local_prepend');
+if (!$unraidChecked) {
+    $var = @parse_ini_file(getenv('AIB_VAR_INI') ?: '/var/local/emhttp/var.ini') ?: [];
+    if (empty($var['csrf_token']) || !hash_equals((string)$var['csrf_token'], (string)($_POST['csrf_token'] ?? ''))) {
+        aib_reply(['ok' => false, 'error' => 'Ungültiges CSRF-Token – Seite neu laden'], 403);
+    }
 }
 
 try {

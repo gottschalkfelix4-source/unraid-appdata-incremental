@@ -61,6 +61,7 @@ final class Config
             // e.g. {"match_path": "*/appdata/gamepanel", "excludes": ["backups", "servers", "cache"]}
             'presets' => [],
             'log_keep' => 14,
+            'setup_completed' => false,
             'containers' => new \stdClass(),
         ];
     }

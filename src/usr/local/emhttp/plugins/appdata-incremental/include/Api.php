@@ -273,6 +273,7 @@ final class Api
             if (!in_array($mode, ['auto', 'none'], true) || !in_array($of, ['backup_stopped', 'skip'], true)) throw new \InvalidArgumentException('Ungültige Snapshot-Einstellung');
             $c['snapshot']['mode'] = $mode; $c['snapshot']['on_failure'] = $of;
         }
+        if (isset($s['setup_completed'])) $c['setup_completed'] = self::bool($s['setup_completed']);
         if (isset($s['stop_timeout'])) $c['stop_timeout'] = max(5, min(600, (int)$s['stop_timeout']));
         if (isset($s['compression'])) {
             if (!in_array($s['compression'], ['auto', 'max', 'off'], true)) throw new \InvalidArgumentException('Ungültige Kompression');
@@ -354,6 +355,29 @@ final class Api
     {
         Secrets::setPassword($this->cfg, (string)($p['password'] ?? ''), self::bool($p['force'] ?? false));
         return Secrets::passwordStatus($this->cfg);
+    }
+
+    /** Key-based login check for SFTP targets (no repository password needed yet). */
+    private function a_test_login(array $p): array
+    {
+        if (($this->cfg->get('target.type') ?? '') !== 'sftp') return ['ok' => true, 'message' => 'Kein SSH-Ziel.'];
+        $host = V::host((string)$this->cfg->get('target.host'));
+        $user = V::user((string)$this->cfg->get('target.user'));
+        $port = V::port($this->cfg->get('target.port'));
+        $key = (string)$this->cfg->get('ssh.key_file');
+        if (!is_file($key)) return ['ok' => false, 'message' => 'Noch kein Schlüssel erzeugt.'];
+        if (!is_dir(Env::tmpDir())) mkdir(Env::tmpDir(), 0700, true);
+        $batch = Env::tmpDir() . '/sftp-test.batch';
+        file_put_contents($batch, "pwd\n");
+        [$c, $o, $e] = Cmd::run([Env::bin('sftp'), '-b', $batch, '-P', (string)$port, '-i', $this->restic()->privateKeyCopy($key),
+            '-o', 'BatchMode=yes', '-o', 'IdentitiesOnly=yes', '-o', 'StrictHostKeyChecking=accept-new',
+            '-o', 'UserKnownHostsFile=' . $this->cfg->get('ssh.known_hosts'), '-o', 'ConnectTimeout=20', "$user@$host"]);
+        if ($c === 0) return ['ok' => true, 'message' => 'Anmeldung mit Schlüssel funktioniert.'];
+        $err = trim($e);
+        if (stripos($err, 'Permission denied') !== false) return ['ok' => false, 'message' => 'Anmeldung mit Schlüssel klappt noch nicht – Schlüssel noch nicht hinterlegt oder SSH auf dem Server nicht aktiviert.'];
+        if (preg_match('/Could not resolve|Name or service not known/i', $err)) return ['ok' => false, 'message' => 'Server nicht gefunden – Hostname prüfen.'];
+        if (preg_match('/timed out|Connection refused|No route/i', $err)) return ['ok' => false, 'message' => 'Server nicht erreichbar – Port und SSH-Freigabe prüfen.'];
+        return ['ok' => false, 'message' => 'Anmeldung fehlgeschlagen: ' . mb_substr($err, 0, 300)];
     }
 
     private function a_test_connection(array $p): array

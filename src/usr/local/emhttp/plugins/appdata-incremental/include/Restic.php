@@ -61,7 +61,7 @@ final class Restic
      * ssh refuses private keys with open permissions; the flash drive (FAT32) cannot store them.
      * Use a 0600 copy in RAM instead.
      */
-    private function privateKeyCopy(string $key): string
+    public function privateKeyCopy(string $key): string
     {
         if ($key === '' || !is_file($key)) return $key;
         $dir = Env::tmpDir() . '/ssh';

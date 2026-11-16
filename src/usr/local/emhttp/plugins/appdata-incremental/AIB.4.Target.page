@@ -1,10 +1,11 @@
-Menu="AppdataIncremental:3"
+Menu="AppdataIncremental:4"
 Title="Ziel"
 Tag="cloud-upload"
 Markdown="false"
 ---
 <?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
 <div id="aib-target" class="aib-wrap">
+  <p class="aib-muted"><i class="fa fa-magic"></i> Einfacher geht's mit dem Assistenten im Tab <a href="#" onclick="AIB.gotoTab('Einrichtung');return false">„Einrichtung“</a>. Hier kannst du alles einzeln ändern.</p>
   <div class="title"><span class="left"><i class="fa fa-list-ol title"></i>Einrichtung</span></div>
   <ul id="aib-steps" class="aib-steps"></ul>
 

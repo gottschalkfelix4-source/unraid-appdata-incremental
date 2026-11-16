@@ -47,3 +47,29 @@
 .aib-steps li i { width: 18px; }
 .aib-hidden { display: none !important; }
 dl.aib-dl dt { white-space: nowrap; }
+
+/* setup wizard */
+.aib-wiz { max-width: 980px; }
+.aib-wiz h2 { font-size: 20px; font-weight: normal; margin: 14px 0 10px; }
+.aib-wiz p, .aib-wiz li { line-height: 1.55; }
+.aib-wiz .aib-ok { color: #3c9e3c; }
+.aib-wiz-nav { list-style: none; display: flex; flex-wrap: wrap; gap: 4px; padding: 0; margin: 10px 0 18px; counter-reset: wz; }
+.aib-wiz-nav li { counter-increment: wz; padding: 4px 10px 4px 6px; border-radius: 14px; background: rgba(128,128,128,.18); font-size: 12px; opacity: .7; }
+.aib-wiz-nav li::before { content: counter(wz); display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 50%; background: rgba(128,128,128,.4); margin-right: 6px; font-size: 11px; }
+.aib-wiz-nav li.done { opacity: .9; } .aib-wiz-nav li.done::before { content: "✓"; background: #3c9e3c; color: #fff; }
+.aib-wiz-nav li.cur { opacity: 1; background: rgba(230,138,0,.3); font-weight: bold; } .aib-wiz-nav li.cur::before { background: #e68a00; color: #fff; }
+.aib-wz-step { display: none; min-height: 220px; }
+.aib-wz-step.cur { display: block; }
+.aib-wz-buttons { display: flex; justify-content: space-between; border-top: 1px solid rgba(128,128,128,.3); padding-top: 12px; margin-top: 18px; }
+.aib-cards { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0 16px; }
+.aib-card { flex: 1 1 240px; border: 2px solid rgba(128,128,128,.35); border-radius: 8px; padding: 12px 14px; cursor: pointer; }
+.aib-card input { margin-right: 8px; }
+.aib-card span { display: block; font-size: 12px; opacity: .75; margin-top: 4px; }
+.aib-card.sel { border-color: #e68a00; background: rgba(230,138,0,.08); }
+.aib-wz-sub { display: none; } .aib-wz-sub.show { display: block; }
+.aib-hint { font-size: 12px; opacity: .8; margin: 2px 0 10px; }
+.aib-wz-cts { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px 14px; margin-top: 8px; }
+.aib-wz-cts label { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; background: rgba(128,128,128,.1); }
+.aib-wz-cts label.off { opacity: .55; }
+.aib-wz-cts img, .aib-wz-cts .aib-icon-ph { width: 24px; height: 24px; border-radius: 4px; line-height: 24px; font-size: 15px; text-align: center; }
+.aib-wz-cts small { display: block; font-size: 11px; opacity: .7; }

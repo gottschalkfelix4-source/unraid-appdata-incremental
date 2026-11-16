@@ -43,7 +43,12 @@ Voraussetzung: Unraid 7.0 oder neuer. Updates erscheinen unter Plugins → „Ch
 
 ## Einrichtung (in der Oberfläche)
 
-Einstellungen → User Utilities → **Appdata Incremental**. Das Hilfe-Symbol im Unraid-Header blendet zu jedem Feld eine Erklärung ein.
+Einstellungen → User Utilities → **Appdata Incremental** → Tab **Einrichtung**: Ein Assistent führt Schritt für Schritt durch Ziel, Anmeldung, Backup-Passwort, Verbindung, Container-Auswahl und Zeitplan.
+Bei einer Hetzner Storage Box reicht der Benutzername; Server und Port setzt der Assistent selbst.
+
+![Einrichtungs-Assistent](docs/screenshots/0-einrichtung-ziel.png)
+
+Alles lässt sich danach in den anderen Tabs einzeln ändern. Ohne Assistent geht es so (das Hilfe-Symbol im Unraid-Header blendet zu jedem Feld eine Erklärung ein):
 
 1. **Ziel**
    - **Art des Ziels** wählen. Bei SFTP, z. B. einer Hetzner Storage Box (Port 23, SSH-Support im Konto aktivieren), Host, Benutzer, Port und Pfad eintragen und **Ziel speichern**.
@@ -63,6 +68,7 @@ Vorbereitete Einstellungen, etwa Regeln und Ausschlüsse, lassen sich unter *Zei
 
 | Tab | Inhalt |
 |---|---|
+| Einrichtung | Assistent für die Ersteinrichtung; danach Übersicht und „erneut durchlaufen“ |
 | Status | Zustand, Fortschritt, „Backup jetzt starten“, Testlauf, Abbrechen, letzter Lauf je Container (neue Daten, Ausfallzeit), Live-Log |
 | Container | alle Container mit Icon, Status und Pfaden; sichern, stoppen, Gruppe, Reihenfolge, Ausschlüsse (Ordner-Browser, Vorlagen), Zusatzpfade, „Jetzt sichern“ |
 | Ziel | Backup-Ziel, SSH-Schlüssel, Repository-Passwort, Verbindung testen, Repository initialisieren |
@@ -81,7 +87,7 @@ Screenshots: [docs/screenshots](docs/screenshots). Sie stammen aus dem Test-Harn
   - known_hosts
 - Sie werden nie geloggt und nie an die Oberfläche geschickt. Ausnahme ist die bewusste Einmal-Anzeige eines neu erzeugten Passworts.
 - Das Zielkonto-Passwort zum Hinterlegen des Schlüssels wird nur an diesen einen `ssh`-Aufruf übergeben (`SSH_ASKPASS`) und nirgends gespeichert.
-- Alle Anfragen der Oberfläche sind POST mit Unraid-CSRF-Token. Die Eingaben werden geprüft: Containernamen, Pfade ohne `..`, Hosts, Cron-Felder und Snapshot-IDs.
+- Alle Anfragen der Oberfläche sind POST mit Unraid-CSRF-Token (geprüft von Unraids `local_prepend.php`, außerhalb von Unraid vom Plugin selbst). Die Eingaben werden geprüft: Containernamen, Pfade ohne `..`, Hosts, Cron-Felder und Snapshot-IDs.
 - Programme werden ohne Shell mit Argumentlisten aufgerufen.
 - Der USB-Stick ist FAT32 und speichert keine Dateirechte. Für `ssh` nutzt das Plugin deshalb eine Kopie des Schlüssels mit Rechten 0600 im RAM.
 

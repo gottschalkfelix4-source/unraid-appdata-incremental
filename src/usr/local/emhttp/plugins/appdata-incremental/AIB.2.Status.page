@@ -1,11 +1,11 @@
-Menu="AppdataIncremental:1"
+Menu="AppdataIncremental:2"
 Title="Status"
 Tag="tachometer"
 Markdown="false"
 ---
 <?php include '/usr/local/emhttp/plugins/appdata-incremental/include/assets.php'; ?>
 <div id="aib-status" class="aib-wrap">
-  <div id="aib-setup-hint" class="aib-msg info" style="display:none">Die Einrichtung ist noch nicht fertig. Im Tab <a href="#" onclick="AIB.gotoTab('Ziel');return false">„Ziel“</a> Backup-Ziel, Schlüssel und Passwort einrichten.</div>
+  <div id="aib-setup-hint" class="aib-msg info" style="display:none">Die Einrichtung ist noch nicht fertig. <a href="#" onclick="AIB.gotoTab('Einrichtung');return false">Zum Einrichtungs-Assistenten</a></div>
   <div class="title"><span class="left"><i class="fa fa-tachometer title"></i>Aktueller Stand</span></div>
   <dl><dt>Status:</dt><dd id="aib-state">…</dd></dl>
   <div id="aib-progress" class="aib-progress" style="display:none"><div></div></div>
