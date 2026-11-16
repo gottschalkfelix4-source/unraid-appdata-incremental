@@ -3,8 +3,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "appdata-incremental">
 <!ENTITY author    "gottschalkfelix4-source">
-<!ENTITY version   "2026.11.16c">
-<!ENTITY gitRef    "5bc2c0495c1fa267cd991b0fe3c01b99a495195c">
+<!ENTITY version   "2026.11.16d">
+<!ENTITY gitRef    "5a818b3bfb5e0a53c4058bb4a9266dcde3895722">
 <!ENTITY repoURL   "https://github.com/gottschalkfelix4-source/unraid-appdata-incremental">
 <!ENTITY rawURL    "https://raw.githubusercontent.com/gottschalkfelix4-source/unraid-appdata-incremental">
 <!ENTITY pluginURL "&rawURL;/main/&name;.plg">
@@ -15,6 +15,9 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" pluginURL="&pluginURL;" support="&repoURL;/issues" min="7.0.0" icon="archive">
 
 <CHANGES>
+###2026.11.16d
+- Fix: Ein Lauf galt als „fehlgeschlagen“, wenn der kurzzeitige ZFS-Snapshot direkt nach der Sicherung noch belegt war („dataset is busy“). Der Snapshot wird jetzt ausgehängt und das Löschen einige Sekunden lang wiederholt; klappt es trotzdem nicht, gibt es nur eine Warnung und er wird beim nächsten Snapshot bzw. Lauf entfernt.
+
 ###2026.11.16c
 - Status-Seite neu: Kacheln für Zustand, letztes Backup, nächstes Backup und Speicher (belegt im Backup-Speicher, Versionen, freier Platz am Ziel mit Balken)
 - Laufender Vorgang mit „Container x von y“, Gesamtfortschritt, Laufzeit und Abbrechen
@@ -65,7 +68,7 @@ fe804e78c2472472abe27fb8a0f713e3b6d0faed5b7d35dcfc6fb98edcdf5a44  usr/local/emht
 6872bf26a13cff83f529bafd70e91ddcc7a9c1fe4d0f428ed3a0b9d9f5356843  usr/local/emhttp/plugins/appdata-incremental/include/Docker.php
 076e8dd8f22cc515395589023966ff658a6feb9d41a27c7d8ecb5a7c9698aa5c  usr/local/emhttp/plugins/appdata-incremental/include/Restic.php
 a83f5985cb67005702eef5c750e68ec08ba1acde66dcfa79e7397e105de958c4  usr/local/emhttp/plugins/appdata-incremental/include/Restore.php
-4c88e26530def63a9d37c7daaa506d98a32493910f1e1b871711da3c4017fcb7  usr/local/emhttp/plugins/appdata-incremental/include/Storage.php
+2d395e7bc6b8a23504ffc7ce079a3cc02857122d99f7bc329862e8bcc86f77e9  usr/local/emhttp/plugins/appdata-incremental/include/Storage.php
 5506ae5722a80e33ca8d2695e939790981dcf39026a1b0b70f1775aaa5fea3ab  usr/local/emhttp/plugins/appdata-incremental/include/Util.php
 661bdbf317b81fdc46632ef7f405da4d57074dcc08d091551033dc7e956d9763  usr/local/emhttp/plugins/appdata-incremental/include/api.php
 4c5877d07aadf6a797cef96278901387789a784d600d3b75067a5c3c5b580c7c  usr/local/emhttp/plugins/appdata-incremental/include/assets.php
