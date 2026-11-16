@@ -113,7 +113,7 @@ find "$CFG/bin" -name 'restic-*' ! -name "restic-$RV" -delete
 if [ -f "$CFG/config.json" ]; then
   /usr/local/sbin/aib schedule apply
 else
-  echo "Noch keine Konfiguration. Weiter mit: aib config sync, dann aib doctor"
+  echo "Noch nicht eingerichtet. Weiter in der Oberfläche: Einstellungen → User Utilities → Appdata Incremental → Ziel"
 fi
 echo "Appdata Incremental $VER installiert (restic $(/usr/local/bin/aib-restic version | cut -d' ' -f2))."
 </INLINE>
