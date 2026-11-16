@@ -1,0 +1,19 @@
+{
+  "repository": "sftp:USER@HOST:restic-appdata",
+  "ssh": { "port": 23 },
+
+  "presets": [
+    {
+      "match_path": "*/appdata/gamepanel",
+      "excludes": ["backups", "servers", "cache"],
+      "stop": true,
+      "note": "Beispiel: Ein Game-Panel sichert seine Welten und eigenen Backups selbst. Nur Datenbank und Einstellungen sichern."
+    }
+  ],
+  "auto_disable_mount_patterns": ["*/appdata/gamepanel/servers/*"],
+
+  "global_excludes": ["*.tmp"],
+  "retention": { "keep_daily": 7, "keep_weekly": 4, "keep_monthly": 6 },
+  "schedule": { "backup": "0 2 * * *" },
+  "notify": { "on_error": true, "on_warning": true, "on_success": false }
+}
