@@ -3,8 +3,8 @@
 <!DOCTYPE PLUGIN [
 <!ENTITY name      "appdata-incremental">
 <!ENTITY author    "gottschalkfelix4-source">
-<!ENTITY version   "2026.11.16a">
-<!ENTITY gitRef    "d301b6dbb895434707358e39106197786b875b1f">
+<!ENTITY version   "2026.11.16b">
+<!ENTITY gitRef    "059ef14312042085cd2856c182023d71a8deab9a">
 <!ENTITY repoURL   "https://github.com/gottschalkfelix4-source/unraid-appdata-incremental">
 <!ENTITY rawURL    "https://raw.githubusercontent.com/gottschalkfelix4-source/unraid-appdata-incremental">
 <!ENTITY pluginURL "&rawURL;/main/&name;.plg">
@@ -15,6 +15,11 @@
 <PLUGIN name="&name;" author="&author;" version="&version;" pluginURL="&pluginURL;" support="&repoURL;/issues" min="7.0.0" icon="archive">
 
 <CHANGES>
+###2026.11.16b
+- Fix: In Unraid kam bei jeder Aktion „Ungültiges CSRF-Token“ (Unraid prüft das Token selbst und entfernt es danach – das Plugin prüft jetzt nur noch, wenn diese Prüfung fehlt)
+- Neu: Einrichtungs-Assistent als erster Tab „Einrichtung“ – Schritt für Schritt: Ziel (Storage Box, SFTP oder Ordner), Anmeldung mit Schlüssel, Backup-Passwort, Verbindung, Container, Zeitplan, Fertig
+- Storage Box: nur Benutzername eingeben, Server und Port werden automatisch gesetzt; Anmeldung wird nach dem Hinterlegen des Schlüssels geprüft
+
 ###2026.11.16a
 - Neu: WebGUI unter Einstellungen → User Utilities → Appdata Incremental (7 Tabs, Unraid-Stil, Hilfetexte)
 - Einrichtung ohne Terminal: Ziel (SFTP/lokal/benutzerdefiniert), SSH-Schlüssel erzeugen und hinterlegen, Repository-Passwort erzeugen (Einmal-Anzeige, Download), Verbindung testen, Repository initialisieren
@@ -37,27 +42,28 @@
 <!-- SHA256 manifest of the plugin files at commit &gitRef; -->
 <FILE Name="&plgPATH;/manifest-&version;.sha256">
 <INLINE>
-c25a42e10d40fa16fe5ac5d279ba747812950c06bff328e3dd7260d512a954d8  usr/local/emhttp/plugins/appdata-incremental/AIB.1.Status.page
-00f89da1e7dfb88d80e8d9ce03194d59d3292a0b57b48f52b378d08c59de71cb  usr/local/emhttp/plugins/appdata-incremental/AIB.2.Containers.page
-e035653cb1dbcec0b1b65824b883963d68f8df7fb755cd4ed1a535480f1f5346  usr/local/emhttp/plugins/appdata-incremental/AIB.3.Target.page
-a790a423cf6128d8ffdefb1c2c1c9a48a4d83b36c037a80be0480c6c383a990d  usr/local/emhttp/plugins/appdata-incremental/AIB.4.Schedule.page
-a8afc71ca8269cf574538de5afede1f49b5601c2a3d9f22876233dc4806832e0  usr/local/emhttp/plugins/appdata-incremental/AIB.5.History.page
-e83d7f9a0287ea3943f34cdd10324e097194caeee30419b6f9595563f22c7a68  usr/local/emhttp/plugins/appdata-incremental/AIB.6.Restore.page
-8247b35a801509d690c41db920ad79b3402e0b2f89cd58c988340a992d848e3e  usr/local/emhttp/plugins/appdata-incremental/AIB.7.Tools.page
+14f4a65586e5ab5a998ecf270511cafba35d695a96c1f9066972c8d308c1d583  usr/local/emhttp/plugins/appdata-incremental/AIB.1.Setup.page
+2b3116e64d6af3b1b7fade1620338a054d40d5bca601ec70b619297f092ca9de  usr/local/emhttp/plugins/appdata-incremental/AIB.2.Status.page
+34ae6cfcd52cd816d13645d8afd80b1a02f6d295623e8b1ba84e022739aa6f86  usr/local/emhttp/plugins/appdata-incremental/AIB.3.Containers.page
+107f5b3cbdfe0570b0cba213740d6b982f435711155d06c5262cd132380e65b4  usr/local/emhttp/plugins/appdata-incremental/AIB.4.Target.page
+0f0ba370474ecceb1634b80eb670cc07f737426f8c4d619ddad01cfade95d7cc  usr/local/emhttp/plugins/appdata-incremental/AIB.5.Schedule.page
+fcd8585e500ea799735b1cdd55f6a046c4409208ea6f4f4993bac6db72b7add5  usr/local/emhttp/plugins/appdata-incremental/AIB.6.History.page
+6308fead6ebd83a17ec8df92fde67f2a5e066875f162672192299477f96b70e2  usr/local/emhttp/plugins/appdata-incremental/AIB.7.Restore.page
+bd168b7c5c12c7ead07e4ff00afaac590139a7fefdd3b19ac71388965456e228  usr/local/emhttp/plugins/appdata-incremental/AIB.8.Tools.page
 1d5f6cd732b0f753627ead37f7e4024ae68f13327b3484333bff5ca9b742fb29  usr/local/emhttp/plugins/appdata-incremental/AppdataIncremental.page
-8aaa24cadffd3ce4edeed1b31dc9090f81abaecbf5b0eef6bd89cf4a3b84e526  usr/local/emhttp/plugins/appdata-incremental/css/aib.css
+3e6ef65ab9ecb7eddc9aa41d811c8055b6c9ada27ef84097555033128fc7fde5  usr/local/emhttp/plugins/appdata-incremental/css/aib.css
 e7d4beb083b7796fdb02f68dc954819198e43de626c16a93feec71693d4efe77  usr/local/emhttp/plugins/appdata-incremental/include/Admin.php
-0afcea16a916d8edb9077c6044f4dd5820c79a296d0fa9dd6f8f36bafdcfe5a4  usr/local/emhttp/plugins/appdata-incremental/include/Api.php
+3e4a8a6471ae7450a73e4ecdf66dbbc9ee3d4ec279bb240bf234e889e03277a4  usr/local/emhttp/plugins/appdata-incremental/include/Api.php
 84e8b65c6be8d42eb0d52316cd6e384897054a11f4307c567e257786bd7c01a4  usr/local/emhttp/plugins/appdata-incremental/include/Backup.php
-31245884c336941940a2b699737d5c76ce3e966b1ce3e521cf118a0763f8eb55  usr/local/emhttp/plugins/appdata-incremental/include/Config.php
+3ffb15e4064a35861adbf6433d3da767c6251cf59f361368c6b175b90f91dfb6  usr/local/emhttp/plugins/appdata-incremental/include/Config.php
 6872bf26a13cff83f529bafd70e91ddcc7a9c1fe4d0f428ed3a0b9d9f5356843  usr/local/emhttp/plugins/appdata-incremental/include/Docker.php
-15d91559b709839bcde7d7b07be9b59772a6c54f723a7010cb13d0ece69f7729  usr/local/emhttp/plugins/appdata-incremental/include/Restic.php
+076e8dd8f22cc515395589023966ff658a6feb9d41a27c7d8ecb5a7c9698aa5c  usr/local/emhttp/plugins/appdata-incremental/include/Restic.php
 a83f5985cb67005702eef5c750e68ec08ba1acde66dcfa79e7397e105de958c4  usr/local/emhttp/plugins/appdata-incremental/include/Restore.php
 4c88e26530def63a9d37c7daaa506d98a32493910f1e1b871711da3c4017fcb7  usr/local/emhttp/plugins/appdata-incremental/include/Storage.php
 5506ae5722a80e33ca8d2695e939790981dcf39026a1b0b70f1775aaa5fea3ab  usr/local/emhttp/plugins/appdata-incremental/include/Util.php
-c020ae31e4585f97805cff8f1069f1f6cb785fe2126fb2abe237f906a7457a50  usr/local/emhttp/plugins/appdata-incremental/include/api.php
+661bdbf317b81fdc46632ef7f405da4d57074dcc08d091551033dc7e956d9763  usr/local/emhttp/plugins/appdata-incremental/include/api.php
 4c5877d07aadf6a797cef96278901387789a784d600d3b75067a5c3c5b580c7c  usr/local/emhttp/plugins/appdata-incremental/include/assets.php
-4d474b9f448064b3569056a60b45d44f210145918cfacf711a68e6c5c2ac7b5f  usr/local/emhttp/plugins/appdata-incremental/js/aib.js
+7f5c27f1721bba7699ff40181393366a853284fa1d945988994d9c018e6ae276  usr/local/emhttp/plugins/appdata-incremental/js/aib.js
 c21ff8ed8b39b1c18b57158d1d48f08feefeab9410bff9aa3635348c9b49d8a1  usr/local/emhttp/plugins/appdata-incremental/scripts/aib
 </INLINE>
 </FILE>
